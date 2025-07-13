@@ -7,7 +7,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState<'zh' | 'jp'>('zh'); // Default to Chinese
+  const [language, setLanguage] = useState<'zh' | 'jp'>('jp'); // Default to jp
   const [todaysPhrase] = useState(todaysPhrases[Math.floor(Math.random() * todaysPhrases.length)]);
 
   // Translation helper function
@@ -43,6 +43,18 @@ function App() {
       if (tag === 'advanced') return 'bg-red-900 text-red-200';
       if (tag === 'free') return 'bg-blue-900 text-blue-200';
       if (tag === 'premium') return 'bg-purple-900 text-purple-200';
+      if (tag === 'grammar') return 'bg-pink-900 text-pink-200';
+      if (tag === 'pronunciation') return 'bg-indigo-900 text-indigo-200';
+      if (tag === 'phrase') return 'bg-teal-900 text-teal-200';
+      if (tag === 'all levels') return 'bg-gray-800 text-gray-100';
+      if (tag === 'structured') return 'bg-amber-900 text-amber-200';
+      if (tag === 'news') return 'bg-cyan-900 text-cyan-200';
+      if (tag === 'video') return 'bg-orange-900 text-orange-200';
+      if (tag === 'podcast') return 'bg-rose-900 text-rose-200';
+      if (tag === 'lecture') return 'bg-lime-900 text-lime-200';
+      if (tag === 'paper') return 'bg-sky-900 text-sky-200';
+      if (tag === 'dictionary') return 'bg-stone-900 text-stone-200';
+      if (tag === 'writing') return 'bg-fuchsia-900 text-fuchsia-200';
       return 'bg-gray-700 text-gray-200';
     } else {
       if (tag === 'beginner') return 'bg-green-100 text-green-800';
@@ -50,6 +62,18 @@ function App() {
       if (tag === 'advanced') return 'bg-red-100 text-red-800';
       if (tag === 'free') return 'bg-blue-100 text-blue-800';
       if (tag === 'premium') return 'bg-purple-100 text-purple-800';
+      if (tag === 'grammar') return 'bg-pink-100 text-pink-800';
+      if (tag === 'pronunciation') return 'bg-indigo-100 text-indigo-800';
+      if (tag === 'phrase') return 'bg-teal-100 text-teal-800';
+      if (tag === 'all levels') return 'bg-gray-100 text-gray-800';
+      if (tag === 'structured') return 'bg-amber-100 text-amber-800';
+      if (tag === 'news') return 'bg-cyan-100 text-cyan-800';
+      if (tag === 'video') return 'bg-orange-100 text-orange-800';
+      if (tag === 'podcast') return 'bg-rose-100 text-rose-800';
+      if (tag === 'lecture') return 'bg-lime-100 text-lime-800';
+      if (tag === 'paper') return 'bg-sky-100 text-sky-800';
+      if (tag === 'dictionary') return 'bg-stone-100 text-stone-800';
+      if (tag === 'writing') return 'bg-fuchsia-100 text-fuchsia-800';
       return 'bg-gray-100 text-gray-800';
     }
   };
@@ -59,16 +83,38 @@ function App() {
       {/* Header */}
       <header className={`shadow-sm border-b transition-colors duration-300 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-16 relative">
+            {/*logo */}
             <div className="flex items-center">
               <button
                 onClick={() => setActiveCategory('home')}
-                className={`text-xl font-bold transition-colors ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                className={`whitespace-nowrap text-xl font-bold transition-colors ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
               >
                 {t('title')}
               </button>
             </div>
-            
+          
+              
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-1">
+              {categories.map((category) => {
+                const IconComponent = category.icon;
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => handleCategoryClick(category.id)}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                      activeCategory === category.id
+                        ? darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'
+                        : darkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4" />
+                    <span className="text-center leading-tight break-words w-[41px]">{t(category.nameKey)}</span>
+                  </button>
+                );
+              })}
+            </nav>
             {/* Controls */}
             <div className="flex items-center space-x-4">
               {/* Language Toggle */}
@@ -82,7 +128,7 @@ function App() {
                 aria-label="Toggle language"
               >
                 <Globe className="w-4 h-4" />
-                <span className="text-sm font-medium">{language === 'zh' ? 'EN' : '中'}</span>
+                <span className="text-sm font-medium">{language === 'zh' ? 'jp' : '中'}</span>
               </button>
               
               {/* Dark Mode Toggle */}
@@ -97,27 +143,6 @@ function App() {
               >
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              
-            {/* Desktop Navigation */}
-              <nav className="hidden lg:flex items-center space-x-1">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => handleCategoryClick(category.id)}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                      activeCategory === category.id
-                        ? darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'
-                        : darkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4" />
-                    <span>{t(category.nameKey)}</span>
-                  </button>
-                );
-              })}
-            </nav>
             </div>
 
             {/* Mobile menu button */}
@@ -240,11 +265,11 @@ function App() {
                 ? 'bg-gradient-to-r from-blue-600 to-purple-700' 
                 : 'bg-gradient-to-r from-blue-500 to-purple-600'
             }`}>
-              <h2 className="text-2xl font-bold mb-4">{language === 'zh' ? '今日短语' : '今日のフレーズ'} ({t('todaysPhrase')})</h2>
+              <h2 className="text-2xl font-bold mb-4">{language === 'zh' ? '今日短语' : '今日の単語'} </h2>
               <div className="space-y-2">
                 <p className="text-3xl font-bold">{todaysPhrase.japanese}</p>
                 <p className="text-lg italic">{todaysPhrase.romaji}</p>
-                <p className="text-lg">{todaysPhrase.english}</p>
+                {/* <p className="text-lg">{todaysPhrase.english}</p> */}
               </div>
             </div>
 
