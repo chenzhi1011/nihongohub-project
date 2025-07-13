@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Menu, X, ExternalLink, Moon, Sun, Globe } from 'lucide-react';
 import { categories, todaysPhrases, translations, Resource, Category } from './data';
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   const [activeCategory, setActiveCategory] = useState('home');
@@ -363,6 +364,7 @@ function App() {
           </div>
         </div>
       </footer>
+      <Analytics />
     </div>
   );
 }
