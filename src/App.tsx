@@ -270,7 +270,7 @@ function App() {
               <div className="space-y-2">
                 <p className="text-3xl font-bold">{todaysPhrase.japanese}</p>
                 <p className="text-lg italic">{todaysPhrase.romaji}</p>
-                {/* <p className="text-lg">{todaysPhrase.english}</p> */}
+                <p className="text-lg">{todaysPhrase.zh}</p>
               </div>
             </div>
 
