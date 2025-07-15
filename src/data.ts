@@ -216,7 +216,7 @@ export const categories: Category[] = [
   }
 ];
 
-export const todaysPhrases = [
+export const todaysPhraseseasy = [
   { japanese: 'がんばって！', romaji: 'Ganbatte!', zh: '加油' },
   { japanese: 'お疲れ様です', romaji: 'Otsukaresama desu', zh: '辛苦了' },
   { japanese: 'いただきます', romaji: 'Itadakimasu', zh: '我开动了（吃饭前用语）' },

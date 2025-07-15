@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
 import { Search, Menu, X, ExternalLink, Moon, Sun, Globe } from 'lucide-react';
-import { categories, todaysPhrases, translations, Resource, Category } from './data';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { categories, translations, Resource, Category } from './data';
+import{todaysPhrases} from './todayspharse';
 import { Analytics } from '@vercel/analytics/react';
 
 function App() {
-  const [activeCategory, setActiveCategory] = useState('home');
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get active category from URL or default to 'home'
+  const getActiveCategoryFromPath = () => {
+    const path = location.pathname;
+    if (path === '/') return 'home';
+    const categoryId = path.substring(1); // Remove leading slash
+    return categories.find(cat => cat.id === categoryId) ? categoryId : 'home';
+  };
+
+
+  const [activeCategory, setActiveCategory] = useState(getActiveCategoryFromPath());
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState<'zh' | 'jp'>('jp'); // Default to jp
   const [todaysPhrase] = useState(todaysPhrases[Math.floor(Math.random() * todaysPhrases.length)]);
+
+  // Update active category when URL changes
+  React.useEffect(() => {
+    setActiveCategory(getActiveCategoryFromPath());
+  }, [location.pathname]);
 
   // Translation helper function
   const t = (key: string): string => {
@@ -33,6 +53,9 @@ function App() {
   };
 
   const handleCategoryClick = (categoryId: string) => {
+    // Update URL and state
+    const newPath = categoryId === 'home' ? '/' : `/${categoryId}`;
+    navigate(newPath);
     setActiveCategory(categoryId);
     setMobileMenuOpen(false);
   };
