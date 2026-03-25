@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  font-family: 'Avenir Next', 'Hiragino Sans', 'Noto Sans JP', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-color: #f7f1e6;
+  color: #2f2218;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background-color: #c86b3c;
+  color: #fff7ef;
+}

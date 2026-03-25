@@ -99,4 +99,17 @@ export const translations: TranslationMap = {
   // Anti-spam feedback errors
   feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },
   feedbackCooldownError: { zh: '发送太频繁，请稍后再试。', jp: '送信が頻繁すぎます。しばらくしてからお試しください。' },
+
+  // Auth
+  login: { zh: '登录', jp: 'ログイン' },
+  devInProgressTitle: { zh: '正在开发中', jp: '開発中です' },
+  devInProgressDesc: { zh: '该功能正在开发中，敬请期待。', jp: 'この機能は現在開発中です。' },
+  devInProgressOk: { zh: '知道了', jp: '了解' },
+  loginMethodTitle: { zh: '选择登录方式', jp: 'ログイン方法を選択' },
+  loginMethodDesc: { zh: '使用以下方式快速登录', jp: '以下の方法で素早くログインできます' },
+  authCancel: { zh: '取消', jp: 'キャンセル' },
+  loginGoogle: { zh: 'Google 登录', jp: 'Googleでログイン' },
+  loginWeChat: { zh: '微信登录', jp: 'WeChatでログイン' },
+  logout: { zh: '退出', jp: 'ログアウト' },
+  loginRequired: { zh: '请先登录', jp: '先にログインしてください' },
 };

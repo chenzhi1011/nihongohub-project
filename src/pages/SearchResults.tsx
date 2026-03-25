@@ -10,7 +10,7 @@ type Props = {
 export function SearchResults({ results, darkMode, t }: Props) {
   return (
     <div className="mb-8">
-      <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{t('searchResults')}</h2>
+      <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>{t('searchResults')}</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {results.map((resource, index) => (
           <ResourceCard

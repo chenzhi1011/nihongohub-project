@@ -7,24 +7,41 @@ import {
   resolveActiveCategoryId,
   searchResources,
 } from '../service/catalogService';
-import {
-  addUserResourceToCategory,
-  loadUserResourcesByCategoryId,
-  saveUserResourcesByCategoryId,
-} from '../service/userResourcesService';
 import type { Language, TodaysPhrase } from '../data/types';
 import type { Resource } from '../data/types';
+import { fetchUserResourcesByCategoryId, insertUserResource, type UserResourcesByCategoryId } from '../api/userDataApi';
+import { saveUserResourcesByCategoryId } from '../service/userResourcesService';
 
-export function useHubApp() {
+export function useHubApp({ userId }: { userId: string | null }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const baseCategoryList = useMemo(() => catalogDataApi.fetchCategories(), []);
   const translationMap = useMemo(() => catalogDataApi.fetchTranslations(), []);
 
-  const [userResourcesByCategoryId, setUserResourcesByCategoryId] = useState(() =>
-    loadUserResourcesByCategoryId(),
-  );
+  const [userResourcesByCategoryId, setUserResourcesByCategoryId] = useState<UserResourcesByCategoryId>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!userId) {
+        setUserResourcesByCategoryId({});
+        return;
+      }
+      const data = await fetchUserResourcesByCategoryId(userId);
+      if (!cancelled) setUserResourcesByCategoryId(data);
+    }
+
+    run().catch(() => {
+      // 获取失败时保持空的 user resources，让页面至少可用
+      if (!cancelled) setUserResourcesByCategoryId({});
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const categoryList = useMemo(() => {
     return baseCategoryList.map((category) => {
@@ -73,10 +90,18 @@ export function useHubApp() {
   );
 
   const addUserResource = useCallback(
-    (categoryId: string, resource: Resource) => {
-      setUserResourcesByCategoryId((prev) => addUserResourceToCategory(prev, categoryId, resource));
+    async (categoryId: string, resource: Resource) => {
+      if (!userId) return;
+      await insertUserResource({
+        userId,
+        categoryId,
+        resource,
+        isPrivate: true,
+      });
+      const refreshed = await fetchUserResourcesByCategoryId(userId);
+      setUserResourcesByCategoryId(refreshed);
     },
-    [setUserResourcesByCategoryId],
+    [userId],
   );
 
   return {

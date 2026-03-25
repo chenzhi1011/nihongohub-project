@@ -7,11 +7,11 @@ export function Footer({ darkMode, t }: Props) {
   return (
     <footer
       className={`border-t mt-12 transition-colors duration-300 ${
-        darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        darkMode ? 'bg-[#2a241d] border-[#4a3f33]' : 'bg-[#fff8ec] border-[#d8c8ae]'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className={`text-center ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        <div className={`text-center ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
           <p>{t('footerText')}</p>
           <p className="mt-2 text-sm">{t('footerEncouragement')}</p>
         </div>
