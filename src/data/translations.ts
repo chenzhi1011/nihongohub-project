@@ -27,8 +27,8 @@ export const translations: TranslationMap = {
   from: { zh: '来源：', jp: 'ソース: ' },
 
   // Add user resource
-  addResource: { zh: '添加我的资源', jp: '自分のリソースを追加' },
-  addResourceTitle: { zh: '添加资源', jp: 'リソースを追加' },
+  addResource: { zh: '添加个人的私有资源（不会向他人开放）', jp: '個人の非公開リソースを追加' },
+  addResourceTitle: { zh: '打造自己的学习路径和资源空间', jp: '自分だけの学習導線とリソース空間を作る' },
   addResourceName: { zh: '资源名称', jp: 'リソース名' },
   addResourceDescription: { zh: '资源描述', jp: '説明' },
   addResourceUrl: { zh: '链接（URL）', jp: 'URL' },

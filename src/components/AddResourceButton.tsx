@@ -39,17 +39,17 @@ export function AddResourceButton({ darkMode, t }: Props) {
         onClick={handleClick}
         className={cardClassName}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex min-h-[124px] flex-col items-center justify-center gap-2 text-center">
           <Plus
             className={`w-5 h-5 mt-0.5 ${
               darkMode ? 'text-[#f0a36b]' : 'text-[#b3572a]'
             }`}
           />
-          <div className="text-left">
-            <div className={`text-sm font-semibold ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
+          <div>
+            <div className={`text-[1.05rem] font-semibold leading-snug ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
               {t('addResource')}
             </div>
-            <div className={`text-xs mt-1 ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
+            <div className={`text-[0.9rem] mt-1 leading-snug ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
               {t('addResourceTitle')}
             </div>
           </div>

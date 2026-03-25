@@ -92,4 +92,3 @@ export async function checkInToday(params: {
 
   return true;
 }
-

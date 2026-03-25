@@ -1,4 +1,4 @@
-import { MessageSquareText, Send, Sparkles, X } from 'lucide-react';
+import { Check, Circle, MessageSquareText, Send, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 
 const FEEDBACK_EMAIL = 'chinnshi.c@qq.com';
@@ -17,6 +17,10 @@ export function FeedbackFab({ darkMode, t }: Props) {
   const [open, setOpen] = useState(false);
   const [devModalOpen, setDevModalOpen] = useState(false);
   const [text, setText] = useState('');
+  const [resourcePref, setResourcePref] = useState('');
+  const [resourcePrefOther, setResourcePrefOther] = useState('');
+  const [featurePref, setFeaturePref] = useState('');
+  const [featurePrefOther, setFeaturePrefOther] = useState('');
 
   const [sendError, setSendError] = useState<string>('');
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
@@ -40,10 +44,18 @@ export function FeedbackFab({ darkMode, t }: Props) {
     }
   }, []);
 
-  const subject = useMemo(() => t('feedbackSubmitSubject'), [t]);
+  const subject = useMemo(() => '日本語HUB - 发送意见', []);
 
   const mailtoHref = useMemo(() => {
+    const resourceAnswer = resourcePref === '其他（填写）' ? `其他：${resourcePrefOther.trim()}` : resourcePref;
+    const featureAnswer = featurePref === '其他（填写）' ? `其他：${featurePrefOther.trim()}` : featurePref;
+
     const bodyLines = [
+      '【问卷】',
+      `1. 你喜欢添加哪一类资源/工具：${resourceAnswer || '未选择'}`,
+      `2. 你希望网站增加什么功能：${featureAnswer || '未选择'}`,
+      '',
+      '【意见】',
       text.trim(),
       '',
       '---',
@@ -57,25 +69,28 @@ export function FeedbackFab({ darkMode, t }: Props) {
     });
 
     return `mailto:${FEEDBACK_EMAIL}?${params.toString()}`;
-  }, [subject, text]);
+  }, [featurePref, featurePrefOther, resourcePref, resourcePrefOther, subject, text]);
 
   const close = () => {
     setOpen(false);
     setText('');
     setSendError('');
+    setResourcePref('');
+    setResourcePrefOther('');
+    setFeaturePref('');
+    setFeaturePrefOther('');
   };
 
   const onSubmit = () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
     if (trimmed.length > FEEDBACK_MAX_CHARS) {
-      setSendError(t('feedbackTooLongError'));
+      setSendError('意见过长，请控制在 1000 字符以内。');
       return;
     }
 
     const now = Date.now();
     if (lastSentAt !== null && now - lastSentAt < FEEDBACK_COOLDOWN_MS) {
-      setSendError(t('feedbackCooldownError'));
+      setSendError('发送太频繁，请稍后再试。');
       return;
     }
 
@@ -109,11 +124,14 @@ export function FeedbackFab({ darkMode, t }: Props) {
             href="/track/daily-checkin-button"
             aria-label="Daily check-in"
             onClick={onDailyClick}
-            className={`absolute right-0 top-0 flex items-center justify-center gap-2 h-[52px] w-[52px] rounded-full overflow-hidden transition-all duration-300 shadow-lg text-white ${
+            className={`absolute right-0 top-0 flex items-center justify-center gap-0 h-[52px] w-[52px] rounded-full overflow-hidden transition-all duration-300 shadow-lg text-white ${
               darkMode ? 'bg-[#2f6f5a] hover:bg-[#3a846c]' : 'bg-[#3b7d67] hover:bg-[#2f6f5a]'
-            } group-hover:w-[180px] group-hover:rounded-2xl group-hover:justify-start group-hover:pl-4`}
+            } group-hover:w-[180px] group-hover:rounded-2xl group-hover:justify-start group-hover:pl-4 group-hover:gap-2`}
           >
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
+            <span className="relative w-5 h-5 flex-shrink-0">
+              <Circle className="w-5 h-5" />
+              <Check className="absolute inset-0 m-auto w-6 h-6" strokeWidth={2.75} />
+            </span>
             <span
               className={`whitespace-nowrap font-semibold text-sm max-w-0 opacity-0 transition-all duration-300 ${
                 darkMode ? 'text-white' : 'text-white'
@@ -165,7 +183,7 @@ export function FeedbackFab({ darkMode, t }: Props) {
                 <MessageSquareText className={darkMode ? 'text-[#f0a36b]' : 'text-[#b3572a]'} />
                 <div>
                   <h3 className={`text-lg font-bold ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
-                    {t('feedbackTitle')}
+                    发送意见
                   </h3>
                   <p className={`text-xs mt-1 ${darkMode ? 'text-[#a89881]' : 'text-[#8f7f69]'}`}>
                     {FEEDBACK_SITE_NAME}
@@ -185,9 +203,85 @@ export function FeedbackFab({ darkMode, t }: Props) {
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 mt-5">
               <label className={`block text-sm font-medium ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
-                {t('feedbackTitle')}
+                1. 你喜欢添加哪一类资源/工具
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {['考级类', '听力练习类', '口语练习类', '写作类', '其他（填写）'].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setResourcePref(item)}
+                    className={`px-2 py-1.5 rounded border text-xs text-left transition-colors ${
+                      resourcePref === item
+                        ? darkMode
+                          ? 'bg-[#7a4c2f] border-[#ca8958] text-[#ffe4c6]'
+                          : 'bg-[#eac7a0] border-[#c88752] text-[#3a281a]'
+                        : darkMode
+                          ? 'border-[#4a3f33] text-[#d8c4ad] hover:bg-[#3a3128]'
+                          : 'border-[#d7c7ae] text-[#6b5845] hover:bg-[#efe1ce]'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              {resourcePref === '其他（填写）' && (
+                <input
+                  value={resourcePrefOther}
+                  onChange={(e) => setResourcePrefOther(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg outline-none transition-colors text-sm ${
+                    darkMode
+                      ? 'bg-[#241f19] border-[#4a3f33] text-[#f5ead8] placeholder-[#8f7f69] focus:ring-2 focus:ring-[#c86b3c]'
+                      : 'bg-[#fffaf0] border-[#d7c7ae] text-[#33261a] placeholder-[#8f7f69] focus:ring-2 focus:ring-[#c86b3c]'
+                  }`}
+                  placeholder="请填写其他资源类型"
+                />
+              )}
+            </div>
+
+            <div className="space-y-2 mt-5">
+              <label className={`block text-sm font-medium ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
+                2. 你希望网站增加什么功能
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {['每日打卡', '学习内容记录', '增加自己个性资源', '其他（填写）'].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setFeaturePref(item)}
+                    className={`px-2 py-1.5 rounded border text-xs text-left transition-colors ${
+                      featurePref === item
+                        ? darkMode
+                          ? 'bg-[#7a4c2f] border-[#ca8958] text-[#ffe4c6]'
+                          : 'bg-[#eac7a0] border-[#c88752] text-[#3a281a]'
+                        : darkMode
+                          ? 'border-[#4a3f33] text-[#d8c4ad] hover:bg-[#3a3128]'
+                          : 'border-[#d7c7ae] text-[#6b5845] hover:bg-[#efe1ce]'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              {featurePref === '其他（填写）' && (
+                <input
+                  value={featurePrefOther}
+                  onChange={(e) => setFeaturePrefOther(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg outline-none transition-colors text-sm ${
+                    darkMode
+                      ? 'bg-[#241f19] border-[#4a3f33] text-[#f5ead8] placeholder-[#8f7f69] focus:ring-2 focus:ring-[#c86b3c]'
+                      : 'bg-[#fffaf0] border-[#d7c7ae] text-[#33261a] placeholder-[#8f7f69] focus:ring-2 focus:ring-[#c86b3c]'
+                  }`}
+                  placeholder="请填写你希望新增的功能"
+                />
+              )}
+            </div>
+
+            <div className="space-y-2 mt-7">
+              <label className={`block text-sm font-medium ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
+                其他意见
               </label>
               <textarea
                 value={text}
@@ -198,13 +292,11 @@ export function FeedbackFab({ darkMode, t }: Props) {
                     : 'bg-[#fffaf0] border-[#d7c7ae] text-[#33261a] placeholder-[#8f7f69] focus:ring-2 focus:ring-[#c86b3c]'
                 }`}
                 rows={5}
-                placeholder={t('feedbackPlaceholder')}
+                placeholder="请填写你的意见（选填，会通过邮件发送给开发者）"
               />
             </div>
 
-            {sendError && (
-              <div className={`text-sm mt-3 ${darkMode ? 'text-red-300' : 'text-red-600'}`}>{sendError}</div>
-            )}
+            {sendError && <div className={`text-sm mt-3 ${darkMode ? 'text-red-300' : 'text-red-600'}`}>{sendError}</div>}
 
             <div className="flex items-center justify-end gap-2 mt-4">
               <button
@@ -216,17 +308,17 @@ export function FeedbackFab({ darkMode, t }: Props) {
                     : 'border-[#d7c7ae] text-[#6b5845] hover:bg-[#efe1ce]'
                 }`}
               >
-                {t('feedbackCancel')}
+                取消
               </button>
               <button
                 type="button"
                 onClick={onSubmit}
-                disabled={!text.trim() || text.trim().length > FEEDBACK_MAX_CHARS || (lastSentAt !== null && Date.now() - lastSentAt < FEEDBACK_COOLDOWN_MS)}
+                disabled={text.trim().length > FEEDBACK_MAX_CHARS || (lastSentAt !== null && Date.now() - lastSentAt < FEEDBACK_COOLDOWN_MS)}
                 className={`px-3 py-2 rounded-lg transition-colors font-medium ${
                   darkMode ? 'bg-[#b85f2f] hover:bg-[#cc7040] text-white' : 'bg-[#c86b3c] hover:bg-[#b85f2f] text-white'
                 } disabled:opacity-60 disabled:cursor-not-allowed`}
               >
-                {t('feedbackSend')}
+                发送
               </button>
             </div>
           </div>

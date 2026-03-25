@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { FeedbackFab } from './components/FeedbackFab';
+import { UpdateNotice } from './components/UpdateNotice';
 import { useHubApp } from './hooks/useHubApp';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { CategoryPage } from './pages/CategoryPage';
@@ -56,6 +57,12 @@ function App() {
         authLoading={authLoading}
         onSignOut={signOut}
       />
+
+      {activeCategory === 'home' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <UpdateNotice darkMode={darkMode} language={language} />
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
