@@ -1,0 +1,115 @@
+import type { TranslationMap } from './types';
+
+export const translations: TranslationMap = {
+  title: { zh: '日语导航', jp: '日本語HUB' },
+
+  home: { zh: '首页', jp: 'ホーム' },
+  basicLearning: { zh: '基础学习', jp: '五十音基礎' },
+  examPrep: { zh: '考试准备', jp: 'JLPT試験' },
+  listening: { zh: '听力练习', jp: '聞く' },
+  speaking: { zh: '口语练习', jp: '話す' },
+  reading: { zh: '阅读练习', jp: '読む' },
+  writing: { zh: '写作论文', jp: '書く' },
+  tools: { zh: '工具词典', jp: '辞書' },
+  studyInJapan: { zh: '留学就业', jp: '留学就活' },
+  weeklyPicks: { zh: '每周推荐', jp: 'おすすめ' },
+
+  searchPlaceholder: { zh: '搜索资源...', jp: '探します...' },
+  searchResults: { zh: '搜索结果', jp: '検索結果' },
+  welcomeTitle: { zh: '欢迎来到日语学习中心', jp: 'ようこそ、日本語Hubへ' },
+  welcomeDesc: {
+    zh: '您的日语学习综合资源中心。发现精选的学习材料、工具和各级别的练习资源。',
+    jp: '日本語学習の総合リソースサイト。レベル別の教材やツール、練習素材を紹介します',
+  },
+  todaysPhrase: { zh: '今日短语', jp: '今日の単語' },
+  resourcesAvailable: { zh: '个资源可用', jp: '個利用可能なリソース' },
+  visitResource: { zh: '访问', jp: '見る' },
+  from: { zh: '来源：', jp: 'ソース: ' },
+
+  // Add user resource
+  addResource: { zh: '添加个人的私有资源（不会向他人开放）', jp: '個人の非公開リソースを追加' },
+  addResourceTitle: { zh: '打造自己的学习路径和资源空间', jp: '自分だけの学習導線とリソース空間を作る' },
+  addResourceName: { zh: '资源名称', jp: 'リソース名' },
+  addResourceDescription: { zh: '资源描述', jp: '説明' },
+  addResourceUrl: { zh: '链接（URL）', jp: 'URL' },
+  addResourceTags: { zh: '标签（逗号分隔）', jp: 'タグ（カンマ区切り）' },
+  addResourceHint: { zh: '提交后将保存在本地浏览器（用于当前设备）。', jp: '送信後はローカルブラウザに保存されます（この端末のみ）。' },
+  addResourceSubmit: { zh: '提交', jp: '追加' },
+  addResourceCancel: { zh: '取消', jp: 'キャンセル' },
+
+  footerText: {
+    zh: '© 2025 by xhs救活 日语学习导航。为日语学习者提供的综合资源。',
+    jp: '© 2025 by xhs救活 日本語Hub. 日本語学習の総合リソースサイト.',
+  },
+  footerEncouragement: {
+    zh: '加油！祝您学习顺利！  chinnshi.c@qq.com',
+    jp: '勉強頑張ってね！応援しています！  chinnshi.c@qq.com',
+  },
+
+  beginner: { zh: '初级', jp: '初心者' },
+  intermediate: { zh: '中级', jp: '中級者' },
+  advanced: { zh: '高级', jp: '上級者' },
+  free: { zh: '免费', jp: '無料' },
+  premium: { zh: '付费', jp: '有料' },
+  official: { zh: '官方', jp: '公式' },
+  practice: { zh: '练习', jp: '練習' },
+  grammar: { zh: '语法', jp: '文法' },
+  audio: { zh: '音频', jp: '音声' },
+  video: { zh: '视频', jp: '動画' },
+  conversation: { zh: '对话', jp: '会話' },
+  pronunciation: { zh: '发音', jp: '発音' },
+  news: { zh: '新闻', jp: 'ニュース' },
+  entertainment: { zh: '娱乐', jp: 'エンタメ' },
+  tutoring: { zh: '辅导', jp: '個別指導' },
+  technique: { zh: '技巧', jp: 'テクニック' },
+  phrases: { zh: '短语', jp: 'フレーズ' },
+  literature: { zh: '文学', jp: '文学' },
+  community: { zh: '社区', jp: 'コミュニティ' },
+  dictionary: { zh: '词典', jp: '辞書' },
+  native: { zh: '母语', jp: 'ネイティブ' },
+  translation: { zh: '翻译', jp: '翻訳' },
+  browser: { zh: '浏览器', jp: 'ブラウザ' },
+  exam: { zh: '考试', jp: '試験' },
+  university: { zh: '大学', jp: '大学' },
+  studyAbroad: { zh: '留学', jp: '留学' },
+  career: { zh: '职业', jp: 'キャリア' },
+  guide: { zh: '指南', jp: 'ガイド' },
+  business: { zh: '商务', jp: 'ビジネス' },
+  culture: { zh: '文化', jp: '文化' },
+  contjpt: { zh: '内容', jp: 'コンテンツ' },
+  podcast: { zh: '播客', jp: 'ポッドキャスト' },
+  structured: { zh: '结构化', jp: '体系的' },
+  tips: { zh: '技巧', jp: 'コツ' },
+  allLevels: { zh: '所有级别', jp: '全レベル対応' },
+
+  // Feedback FAB
+  feedbackTitle: { zh: '发送意见', jp: 'ご意見を送信' },
+  feedbackPlaceholder: {
+    zh: '请输入你的意见（会通过邮件发送到开发者邮箱）',
+    jp: 'ご意見を入力してください（メールで送信されます）',
+  },
+  feedbackSend: { zh: '发送', jp: '送信' },
+  feedbackCancel: { zh: '取消', jp: 'キャンセル' },
+  feedbackSubmitSubject: { zh: '日本語HUB - 发送意见', jp: '日本語HUB - ご意見' },
+
+  // Daily check-in (FAB)
+  dailyCheckInButton: { zh: '今日打卡', jp: '今日チェック' },
+  dailyCheckInDone: { zh: '已打卡', jp: 'チェック済み' },
+
+  // Anti-spam feedback errors
+  feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },
+  feedbackCooldownError: { zh: '发送太频繁，请稍后再试。', jp: '送信が頻繁すぎます。しばらくしてからお試しください。' },
+
+  // Auth
+  login: { zh: '登录', jp: 'ログイン' },
+  devInProgressTitle: { zh: '正在开发中', jp: '開発中です' },
+  devInProgressDesc: { zh: '该功能正在开发中，敬请期待。', jp: 'この機能は現在開発中です。' },
+  devInProgressOk: { zh: '知道了', jp: '了解' },
+  loginMethodTitle: { zh: '选择登录方式', jp: 'ログイン方法を選択' },
+  loginMethodDesc: { zh: '使用以下方式快速登录', jp: '以下の方法で素早くログインできます' },
+  authCancel: { zh: '取消', jp: 'キャンセル' },
+  loginGoogle: { zh: 'Google 登录', jp: 'Googleでログイン' },
+  loginWeChat: { zh: '微信登录', jp: 'WeChatでログイン' },
+  logout: { zh: '退出', jp: 'ログアウト' },
+  loginRequired: { zh: '请先登录', jp: '先にログインしてください' },
+};
