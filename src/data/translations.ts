@@ -91,4 +91,12 @@ export const translations: TranslationMap = {
   feedbackSend: { zh: '发送', jp: '送信' },
   feedbackCancel: { zh: '取消', jp: 'キャンセル' },
   feedbackSubmitSubject: { zh: '日本語HUB - 发送意见', jp: '日本語HUB - ご意見' },
+
+  // Daily check-in (FAB)
+  dailyCheckInButton: { zh: '今日打卡', jp: '今日チェック' },
+  dailyCheckInDone: { zh: '已打卡', jp: 'チェック済み' },
+
+  // Anti-spam feedback errors
+  feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },
+  feedbackCooldownError: { zh: '发送太频繁，请稍后再试。', jp: '送信が頻繁すぎます。しばらくしてからお試しください。' },
 };
