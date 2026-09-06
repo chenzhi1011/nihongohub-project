@@ -13,6 +13,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
+    "db:test:concurrency": "bash supabase/tests/concurrency/private_resource_limits.sh",
     "preview": "vite preview"
   },
   "dependencies": {

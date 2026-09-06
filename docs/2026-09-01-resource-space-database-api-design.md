@@ -1,8 +1,8 @@
 # 日本語 HUB：资源、个人 Space、数据库与 API 设计
 
 - 日期：2026-09-01
-- 最后修订：2026-09-06
-- 状态：设计已确认，等待最终文档复核；尚未执行数据库迁移
+- 最后修订：2026-09-07
+- 状态：设计已确认；schema、RLS 与 RPC 已在隔离 worktree 的本地 Supabase 实现并通过测试，尚未连接生产环境
 - 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 
@@ -413,6 +413,34 @@ RLS 是 PostgreSQL 的行级权限。即使用户绕过 React 页面直接调用
 - 函数内部使用 `auth.uid()` 判断身份，不接受客户端传入 `user_id`。
 - 所有资源 ID 都重新验证可见性，不能只相信客户端参数。
 
+### 6.4 首版 RPC 合约
+
+| RPC | 可执行角色 | 关键参数 | 返回/错误 |
+|---|---|---|---|
+| `get_catalog_snapshot()` | `anon`, `authenticated` | 无 | 游客每主题最多 6 条；登录用户返回全部公共主题位置 |
+| `set_resource_mark(p_resource_id, p_marked)` | `authenticated` | 公共资源 ID、目标状态 | 成功返回 `void`；私人资源抛出 `RESOURCE_NOT_PUBLIC` |
+| `record_resource_visit(p_resource_id)` | `authenticated` | 当前用户可见的资源 ID | 原子 upsert；不可见资源抛出 `RESOURCE_NOT_VISIBLE` |
+| `find_similar_resources(p_url, p_exclude_resource_id default null)` | `authenticated` | 待检查 URL、更新时排除的资源 ID | 最多 10 条公共资源和本人私人资源，不返回其他用户私人资源 |
+| `create_private_resource(...)` | `authenticated` | 主题、字段、是否看过相似推荐 | 返回下表中的稳定 JSON 状态 |
+| `update_private_resource(...)` | `authenticated` | 本人资源 ID、主题、字段、确认状态 | 与创建使用相同重复/相似规则；越权抛出 `RESOURCE_NOT_OWNED` |
+| `private_resource_limit()` | `authenticated` | 无 | `200` |
+| `similar_resource_limit()` | `authenticated` | 无 | `30` |
+
+创建和更新 RPC 的预期结果状态：
+
+| `status` | 含义 |
+|---|---|
+| `saved` | 创建或更新成功，响应包含 `resourceId` |
+| `invalid_input` | 必填字段、URL、长度或标签不符合数据库规则 |
+| `exact_url_exists` | 公共资源或本人私人资源已有完全相同 URL，并返回推荐 |
+| `similar_review_required` | 存在同源推荐，必须先让用户确认 |
+| `private_limit_reached` | 本人私人资源已达到 200 条 |
+| `similar_limit_reached` | 本人同一来源的私人资源已达到 30 条；公共资源不参与计数 |
+
+判断顺序为：输入校验 → 用户级事务锁 → 精确重复 → 总量 → 同源数量 → 是否完成相似推荐确认 → 写入。精确重复先于容量判断，确保响应丢失后的同 URL 重试仍得到 `exact_url_exists`，而不是误报容量已满。
+
+首版“Dashboard 管理员”指使用 Supabase Dashboard 或仅存在于受信服务端的 `service_role`。应用内不建立管理员角色表或管理员登录入口；浏览器构建中绝不能出现 `service_role` key。
+
 ## 7. API 设计
 
 ### 7.1 应用类型
@@ -476,7 +504,9 @@ export interface SimilarResourceMatch {
 
 export type SavePrivateResourceResult =
   | { status: 'saved'; resource: ResourceRecord }
+  | { status: 'invalid_input' }
   | { status: 'exact_url_exists'; recommendations: SimilarResourceMatch[] }
+  | { status: 'similar_review_required'; recommendations: SimilarResourceMatch[] }
   | { status: 'similar_limit_reached'; recommendations: SimilarResourceMatch[] }
   | { status: 'private_limit_reached'; current: number; limit: number };
 
