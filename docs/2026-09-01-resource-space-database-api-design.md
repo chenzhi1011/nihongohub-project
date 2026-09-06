@@ -6,6 +6,83 @@
 - 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 
+## 0. 系统责任边界
+
+本章是后续数据库、权限和 API 设计的总约束。实现与本章冲突时，应先修订设计并完成评审，不能由页面代码临时绕过。
+
+文档中的规范词含义如下：
+
+- **必须（MUST）**：安全性或数据一致性的硬性要求。
+- **应当（SHOULD）**：默认执行；偏离时需要在代码评审中说明理由。
+- **禁止（MUST NOT）**：任何实现层都不得绕过的限制。
+
+### 0.1 组件职责与权威数据源
+
+| 模块 | 负责 | 不负责 | 权威数据源 |
+|---|---|---|---|
+| React 页面与组件 | 渲染数据、收集输入、触发用户操作、显示反馈 | 拼接 Supabase 查询、判断最终权限、实现资源限额 | Hooks 返回的页面状态 |
+| Hooks | 请求生命周期、缓存失效、加载/错误状态、可回滚的乐观更新 | 了解表结构、编写 RLS、决定数据库事务 | Service 返回结果 |
+| `src/service/` | 业务流程编排、输入预校验、Space 合并与分组、把底层错误转为用户动作 | 充当最终安全边界、生成可信 `owner_id`、直接访问 Supabase | API 返回的领域对象 |
+| `src/api/` | 前端访问 Supabase 的唯一入口；调用查询/RPC；映射数据库行、类型和错误码 | 页面布局、交互文案、跨页面状态 | Supabase 响应与生成的数据库类型 |
+| `src/observability/` | 统一错误上报、脱敏、事件字段和 release 信息 | 决定业务恢复动作、记录私人内容 | `AppError` 与安全诊断上下文 |
+| Supabase Auth | 登录、会话、签发身份；提供 `auth.uid()` | 资源业务规则和页面授权提示 | `auth.users` 与已验证会话 |
+| PostgreSQL 表 | 持久化资源、Mark、历史等事实数据 | 页面展示顺序之外的视觉配置 | 表中已提交的数据 |
+| RLS | 对每一行执行读取、修改和删除隔离 | 复杂多步业务编排、友好错误提示 | `auth.uid()` 与目标行 |
+| Postgres RPC | 原子执行需要组合校验的读写：游客目录、私人资源创建/修改、数量限制、重复检查、历史 upsert | 渲染 UI、调用浏览器能力 | 同一事务内的数据库状态 |
+| 约束、唯一索引与 Trigger | 保证结构不变量、阻止精确重复、统一生成 `normalized_url` 和更新时间 | 决定“相似资源”如何展示、代替完整业务流程 | 数据库 schema |
+| Supabase Dashboard 管理操作 | 维护首版公共资源 | 代表普通用户提交资源、绕过正式迁移修改生产结构 | 管理员身份与审计记录 |
+| 外部资源网站 | 提供最终学习内容 | 保证链接永久有效、向本系统回传学习状态 | 外部网站自身 |
+
+### 0.2 调用方向
+
+应用代码只能沿以下方向依赖：
+
+```text
+UI → Hooks → Service → API → Supabase Auth / Postgres
+```
+
+- 页面与组件**禁止**直接调用 `supabase.from(...)` 或 RPC。
+- Service **禁止**绕过 `src/api/` 直接访问 Supabase。
+- API **禁止**依赖 React 组件、Hooks 或页面状态。
+- 数据库错误由 API 映射为稳定错误码，Service 决定业务恢复动作，Hook 管理前端状态，UI 只负责呈现。
+
+这条边界确保未来把某个 API 实现替换为 Edge Function 时，上层 Hook 和 UI 的调用契约可以保持不变。
+
+### 0.3 信任边界
+
+浏览器属于不可信环境。用户可以修改请求、绕过页面、重复发送请求，因此：
+
+1. 客户端传入的 `user_id`、`owner_id`、计数、`normalized_url` 和权限结论一律不可信。
+2. 用户身份必须由数据库中的 `auth.uid()` 获取；写入私人资源时由数据库赋予 `owner_id`。
+3. `anon` key 可以出现在浏览器；`service_role` key **禁止**进入前端代码、构建产物和公开仓库。
+4. 前端校验只用于即时反馈；权限、资源上限、精确重复和相似数量必须在实际写入的同一数据库事务中再次校验。
+5. 其他用户的私人资源不得进入当前用户的查询结果、重复推荐或错误详情。
+6. 200/30 是单账号存储约束，不能防止攻击者批量注册账号。首版接受该剩余风险并监控异常注册和写入；出现真实滥用后再引入 CAPTCHA、注册限制或服务端速率限制，不提前建设风控系统。
+
+### 0.4 数据与权限不变量
+
+以下规则必须由数据库保证，不能只靠 UI 约定：
+
+1. `resources.owner_id IS NULL` 唯一表示公共资源；非空 UUID 唯一表示该用户的私人资源。
+2. 普通用户只能读写自己的私人资源；公共资源只有管理员可写。
+3. 游客只能通过目录 RPC 获取每个主题排序最前的 6 条公共资源。
+4. 每个用户的私人资源总数不得超过 200；限制值由数据库函数集中提供。
+5. 用户创建或更新私人资源时，在“全部公共资源 + 当前用户私人资源”范围内发现完整 `url` 相同则拒绝该次写入，并返回已有资源作为推荐。管理员以后新增公共资源不会反向删除已有私人资源。
+6. 同一用户具有相同 `normalized_url` 的私人资源最多 30 条；公共资源只参与相似推荐，不占用该限额。
+7. Mark 只能指向公共资源；同一用户与资源最多一条 Mark。该规则由受控 RPC 和 RLS 共同保证。
+8. 同一用户与资源最多一条浏览历史，通过原子 upsert 累计次数并更新最近访问时间。
+
+### 0.5 失败处理边界
+
+- 打开外部链接是主要动作；浏览历史写入失败不得阻止跳转，只记录可观测错误并允许后续重试。
+- Mark 的乐观更新失败时，Hook 必须回滚星标并显示可操作提示。
+- 私人资源创建或修改失败时，以 RPC 返回的稳定错误码为准；页面不得通过解析数据库原始错误文本判断业务分支。
+- 数据库和外部链接故障不应导致页面泄露其他用户数据；安全失败默认拒绝访问。
+
+### 0.6 首版明确不负责的事项
+
+本阶段不包含用户公开资源、内容审核、社交分享、学习状态、独立学习路线实体、AI 推荐、微信登录和外部网站学习进度同步。未来增加这些能力时必须重新评审本章，尤其是内容审核、隐私边界和服务端密钥管理。
+
 ## 1. 已确认的产品规则
 
 1. 游客在每个主题中只能读取排序最前的 6 条公共资源。
@@ -20,9 +97,9 @@
 10. 没有内容的主题不显示；Space 不分页。
 11. 首版不做公共投稿、审核后台、AI 自动路线、学习中/已完成状态。
 
-## 2. 分层原则是什么意思
+## 2. 分层架构的具体落地
 
-当前应用已经大体按 `UI → Hook → Service → API → Supabase` 分层。一个“点击星标”的完整调用应为：
+第 0 章定义了强制责任边界。本章用“点击星标”说明它如何落到代码中：
 
 ```text
 ResourceCard
@@ -32,7 +109,7 @@ ResourceCard
         → Supabase / Postgres
 ```
 
-各层职责如下：
+各层在代码中的落点如下：
 
 | 层 | 目录 | 职责 | 不应负责 |
 |---|---|---|---|
@@ -166,12 +243,12 @@ create type public.resource_category as enum (
 |---|---|---|---|---|
 | `id` | `bigint` | `PK` | 自增：`generated always as identity` | `301` |
 | `category` | `resource_category` | `NN` | 资源所属主题；取值由 `resource_category` enum 限制 | `listening` |
-| `owner_id` | `uuid` | `FK` | 可空；引用 `auth.users.id`；`NULL` 表示公共资源，UUID 表示该用户的私人资源 | 公共资源：`NULL`；私人资源：`6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
-| `name` | `text` | `NN, CK` | 非空，建议最多 120 字符 | `NHK Easy News` |
-| `description` | `text` | `NN, CK` | 非空，建议最多 500 字符 | `带有注音和音频的简明日语新闻` |
-| `url` | `text` | `NN, CK` | 只接受 HTTP(S) | `https://www3.nhk.or.jp/news/easy/` |
+| `owner_id` | `uuid` | `FK` | 可空；引用 `auth.users.id ON DELETE CASCADE`；`NULL` 表示公共资源，UUID 表示该用户的私人资源 | 公共资源：`NULL`；私人资源：`6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
+| `name` | `text` | `NN, CK` | trim 后 1～120 字符 | `NHK Easy News` |
+| `description` | `text` | `NN, CK` | trim 后 1～500 字符 | `带有注音和音频的简明日语新闻` |
+| `url` | `text` | `NN, CK` | trim 后 1～2048 字符，只接受 HTTP(S) | `https://www3.nhk.or.jp/news/easy/` |
 | `normalized_url` | `text` | `NN` | 相似资源分组键，由数据库 URL 标准化函数根据 `url` 生成 | `https://www3.nhk.or.jp/news/easy` |
-| `tags` | `text[]` | `NN, DF, CK` | 默认空数组；最多 10 项 | `{"beginner","news"}` |
+| `tags` | `text[]` | `NN, DF, CK` | 默认空数组；最多 10 项，每项 trim 后 1～30 字符 | `{"beginner","news"}` |
 | `sort_order` | `integer` | `NN, DF, CK` | 非负；公共资源展示顺序，私人资源默认 0 | `1` |
 | `created_at` | `timestamptz` | `NN, DF` | 默认 `now()` | `2026-09-01T10:30:00+09:00` |
 | `updated_at` | `timestamptz` | `NN, DF` | 默认 `now()`，trigger 自动更新 | `2026-09-01T14:45:00+09:00` |
@@ -185,13 +262,13 @@ create type public.resource_category as enum (
 
 #### URL 重复与相似资源规则
 
-检查范围是全部公共资源和当前用户自己的私人资源，不读取或暴露其他用户的私人资源。
+精确重复和相似推荐的搜索范围是全部公共资源和当前用户自己的私人资源，不读取或暴露其他用户的私人资源。30 条限额的计数范围不同：只统计 `owner_id = auth.uid()` 且 `normalized_url` 相同的私人资源，公共资源只用于推荐，不占用用户额度。
 
 | 比较结果 | 保存规则 | 给用户的操作 |
 |---|---|---|
 | `url` 完全相同 | 禁止新增 | 推荐已有资源；公共资源提供“直接 Mark”，私人资源提供“查看已有资源” |
-| `url` 不同、`normalized_url` 相同 | 相似资源不足 30 条时允许继续 | 先展示相似资源，用户确认后继续保存 |
-| `url` 不同、`normalized_url` 相同，已有 30 条 | 禁止新增 | 推荐已有的 30 条相似资源 |
+| `url` 不同、`normalized_url` 相同 | 本人同组私人资源不足 30 条时允许继续 | 先展示公共资源和本人私人资源，用户确认后继续保存 |
+| `url` 不同、`normalized_url` 相同，本人已有 30 条私人资源 | 禁止新增 | 展示相似推荐，但公共资源数量不影响该限额 |
 | `normalized_url` 不同 | 允许保存 | 正常创建私人资源 |
 
 `url` 在保存前会去除首尾空白并通过 URL 解析器校验；完全相同是指清理后的完整 URL 字符串相同。数据库 trigger 在插入或修改前调用统一标准化函数生成 `normalized_url`，客户端不能自行指定该字段。`normalized_url` 不建立唯一约束，只建立普通查询索引。
@@ -215,7 +292,7 @@ UNIQUE(owner_id, url) WHERE owner_id IS NOT NULL
 - 每个用户最多保存 200 条私人资源。
 - 不设置每日新增限制。
 - 限制值由数据库函数集中返回，不增加配置表。
-- 创建私人资源必须通过数据库 RPC；RPC 在同一事务中检查总量、精确重复和相似资源数量。
+- 创建私人资源必须通过数据库 RPC；RPC 在同一事务中检查总量、精确重复和本人同组私人资源数量。
 
 ```sql
 private_resource_limit() returns integer   -- 200
@@ -230,11 +307,13 @@ similar_resource_limit() returns integer   -- 30
 
 | 字段 | PostgreSQL 类型 | 键/约束 | 约束说明 | 数据示例 |
 |---|---|---|---|---|
-| `user_id` | `uuid` | `PK, FK` | 联合主键的一部分；引用 `auth.users.id` | `6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
+| `user_id` | `uuid` | `PK, FK` | 联合主键的一部分；引用 `auth.users.id ON DELETE CASCADE` | `6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
 | `resource_id` | `bigint` | `PK, FK` | 联合主键的一部分；引用 `resources.id`，删除资源时级联删除 | `301` |
 | `marked_at` | `timestamptz` | `NN, DF` | 默认 `now()` | `2026-09-01T15:10:00+09:00` |
 
 主键：`(user_id, resource_id)`。重复 Mark 使用 upsert，不产生重复行。
+
+普通外键只能证明资源存在，不能证明它是公共资源。因此 Mark 的新增与取消必须调用 `set_resource_mark` RPC：RPC 从 `auth.uid()` 取得用户身份，并在写入前确认目标资源满足 `owner_id IS NULL`。普通用户没有该表的直接写权限；RLS 仍限制本人数据并要求关联资源为公共资源，形成纵深防御。
 
 ### 5.4 `resource_history`
 
@@ -242,8 +321,8 @@ similar_resource_limit() returns integer   -- 30
 
 | 字段 | PostgreSQL 类型 | 键/约束 | 约束说明 | 数据示例 |
 |---|---|---|---|---|
-| `user_id` | `uuid` | `PK, FK` | 联合主键的一部分；引用 `auth.users.id` | `6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
-| `resource_id` | `bigint` | `PK, FK` | 联合主键的一部分；引用 `resources.id` | `301` |
+| `user_id` | `uuid` | `PK, FK` | 联合主键的一部分；引用 `auth.users.id ON DELETE CASCADE` | `6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
+| `resource_id` | `bigint` | `PK, FK` | 联合主键的一部分；引用 `resources.id ON DELETE CASCADE` | `301` |
 | `visit_count` | `integer` | `NN, DF, CK` | 默认 1，必须大于 0 | `7` |
 | `first_visited_at` | `timestamptz` | `NN, DF` | 默认 `now()`，首次访问时间 | `2026-08-20T19:15:00+09:00` |
 | `last_visited_at` | `timestamptz` | `NN, DF` | 默认 `now()`，最近访问时间 | `2026-09-01T15:20:00+09:00` |
@@ -261,13 +340,24 @@ similar_resource_limit() returns integer   -- 30
 至少建立：
 
 ```text
-resources(category, sort_order) where owner_id is null
-resources(owner_id, category, created_at)
+resources(category, sort_order, id) where owner_id is null
+resources(owner_id, category, created_at desc, id) where owner_id is not null
 resources(normalized_url) where owner_id is null
 resources(owner_id, normalized_url) where owner_id is not null
-resource_marks(user_id, marked_at desc)
-resource_history(user_id, last_visited_at desc)
+resource_history(user_id, last_visited_at desc, resource_id)
+unique resources(url) where owner_id is null
+unique resources(owner_id, url) where owner_id is not null
 ```
+
+选择依据是实际查询的“筛选列在前、排序列在后”，并用部分索引排除无关行：
+
+- 公共目录按 `category` 筛选，再按 `sort_order, id` 稳定排序；游客每类前 6 条和登录用户完整目录都复用该索引。
+- Space 按 `owner_id, category` 找到用户私人资源，并按 `created_at DESC, id` 稳定排序。
+- 两个 `normalized_url` 索引分别服务公共资源和当前用户私人资源的相似推荐，避免扫描其他用户数据。
+- 历史先锁定 `user_id`，再按最近访问时间倒序读取前 30 条；`resource_id` 用作时间相同时的稳定排序键。
+- 两个部分唯一索引是精确 URL 防重的最后防线；跨“公共 + 当前用户私人”集合的重复仍由受控 RPC 检查。
+
+`resource_marks` 的主键 `(user_id, resource_id)` 已能支持“查询某用户全部 Mark”。首版不按 `marked_at` 排序，因此不额外建立 `(user_id, marked_at)` 索引；只有未来增加“最近 Mark”功能并由 `EXPLAIN ANALYZE` 证明有需要时再添加。索引会增加写入和存储成本，不应仅因某列可能被查询就预先创建。
 
 ## 6. 权限设计（RLS）
 
@@ -372,11 +462,17 @@ export interface SimilarResourceMatch {
   matchType: 'exact_url' | 'same_normalized_url';
 }
 
-export type CreatePrivateResourceResult =
-  | { status: 'created'; resource: ResourceRecord }
+export type SavePrivateResourceResult =
+  | { status: 'saved'; resource: ResourceRecord }
   | { status: 'exact_url_exists'; recommendations: SimilarResourceMatch[] }
   | { status: 'similar_limit_reached'; recommendations: SimilarResourceMatch[] }
   | { status: 'private_limit_reached'; current: number; limit: number };
+
+export interface AppError extends Error {
+  code: AppErrorCode;
+  operationId: string;
+  retryable: boolean;
+}
 ```
 
 ### 7.2 文件边界
@@ -384,18 +480,20 @@ export type CreatePrivateResourceResult =
 ```text
 src/api/
 ├── supabaseClient.ts
+├── authApi.ts
 ├── catalogApi.ts
-├── resourceMarkApi.ts
-├── resourceHistoryApi.ts
-└── privateResourceApi.ts
+└── resourceApi.ts
 
 src/service/
 ├── catalogService.ts
-├── resourceMarkService.ts
-├── resourceHistoryService.ts
-├── privateResourceService.ts
+├── resourceService.ts
 └── spaceService.ts
+
+src/observability/
+└── errorReporter.ts
 ```
+
+首版按领域合并 Mark、History 和私人资源 API，减少小文件之间的跳转；当单个文件超过约 300 行、出现两个以上独立变化原因，或多人并行开发频繁冲突时再拆分。`authApi.ts` 是认证访问 Supabase 的唯一入口，Hooks 不直接导入 Supabase client。选择这个粒度是为了保留分层边界，同时避免为尚未出现的团队规模提前拆分。
 
 ### 7.3 Catalog API
 
@@ -421,7 +519,8 @@ setResourceMark(resourceId: number, marked: boolean): Promise<void>
 
 - `marked = true`：upsert `(auth.uid(), resourceId)`。
 - `marked = false`：删除当前用户对应行。
-- 数据库确认目标是公共资源。
+- 两种操作都通过 `set_resource_mark` RPC；数据库确认目标存在且 `owner_id IS NULL`。
+- 撤销普通用户对 `resource_marks` 的直接 `INSERT/DELETE` 权限；RLS 仍对表访问执行本人数据和公共资源检查，作为纵深防御。
 - Hook 可以先乐观更新星标；失败时恢复原状态并显示错误。
 
 ### 7.5 History API
@@ -446,13 +545,13 @@ findSimilarResources(url: string): Promise<SimilarResourceMatch[]>
 createPrivateResource(
   input: PrivateResourceInput,
   options: { similarResourcesReviewed: boolean },
-): Promise<CreatePrivateResourceResult>
+): Promise<SavePrivateResourceResult>
 
 updatePrivateResource(
   resourceId: number,
   input: PrivateResourceInput,
   options: { similarResourcesReviewed: boolean },
-): Promise<CreatePrivateResourceResult>
+): Promise<SavePrivateResourceResult>
 
 deletePrivateResource(resourceId: number): Promise<void>
 ```
@@ -460,12 +559,12 @@ deletePrivateResource(resourceId: number): Promise<void>
 创建流程：
 
 1. 表单失焦或用户点击保存时调用 `findSimilarResources`。
-2. 查询全部公共资源和当前用户私人资源，精确匹配排在最前，相同 `normalized_url` 的结果随后展示，最多返回 30 条。
+2. 查询全部公共资源和当前用户私人资源，精确匹配排在最前，相同 `normalized_url` 的结果随后展示；推荐响应最多返回 30 条，但该返回上限不等于私人资源限额。
 3. 存在完全相同的 `url` 时不显示“仍然保存”，只允许直接 Mark 公共资源或查看已有私人资源。
 4. 只有相同 `normalized_url` 时，用户看过推荐结果后可以选择“仍然保存”。
-5. `createPrivateResource` 不能信任前端预检查结果；数据库 RPC 在写入事务中重新检查完全相同 URL、30 条相似上限和 200 条私人资源总量。
+5. `createPrivateResource` 不能信任前端预检查结果；数据库 RPC 在写入事务中重新检查完全相同 URL、本人同组私人资源 30 条上限和本人私人资源总量 200 条上限。
 6. `similarResourcesReviewed` 只代表交互确认，不替代数据库安全检查。
-7. 更新现有私人资源时，相似和重复检查必须排除当前正在编辑的 `resourceId`。
+7. 更新现有私人资源时，相似和重复检查必须排除当前正在编辑的 `resourceId`，并使用与创建相同的用户级事务锁。
 
 Service 层校验：
 
@@ -475,6 +574,8 @@ Service 层校验：
 - 标签 trim、去空、去重，最多 10 个。
 
 数据库层再次通过约束和 RLS 校验。客户端不传 `owner_id`；API 使用当前认证用户，避免伪造所有者。
+
+所有需要用户身份的前端 API 都不接受 `userId` 参数。API 从当前 Supabase session 发起请求，数据库最终只信任 `auth.uid()`。如果同一次创建因响应丢失而被重试，RPC 遇到精确重复后返回已有资源；Service 将其解释为“资源已存在，可直接查看”，不新增首版幂等记录表。
 
 ### 7.7 Space API
 
@@ -512,10 +613,12 @@ type AppErrorCode =
 
 - `AUTH_REQUIRED`：打开登录弹窗。
 - `EXACT_URL_EXISTS`：禁止新增并展示已有资源推荐。
-- `SIMILAR_RESOURCE_LIMIT_REACHED`：相同标准化 URL 已有 30 条，禁止新增并展示推荐。
+- `SIMILAR_RESOURCE_LIMIT_REACHED`：本人具有相同标准化 URL 的私人资源已有 30 条，禁止新增并展示推荐。
 - `PRIVATE_RESOURCE_LIMIT_REACHED`：私人资源已达到 200 条。
 - `NETWORK_ERROR`：保留当前表单内容，允许重试。
 - `FORBIDDEN`：不自动重试，记录诊断信息但不展示数据库细节。
+
+API 每次操作生成 `operationId`，把 Supabase 返回错误映射为 `AppError` 后再抛给 Service。调用 Auth SDK 时必须检查返回对象中的 `error` 字段，不能只依赖 `try/catch`；[Supabase Auth 官方示例](https://supabase.com/docs/reference/javascript/auth-signinwithoauth)同样使用 `{ data, error }` 接收结果。UI 使用稳定的 `code` 决定提示，日志使用 `operationId` 关联同一次操作。
 
 ## 8. 数据库操作文件
 
@@ -537,11 +640,23 @@ supabase/
 1. `create_resource_schema.sql`：枚举、表、主外键、检查约束。
 2. `create_resource_indexes_triggers.sql`：索引、URL 规范化、`updated_at` trigger。
 3. `create_resource_rls.sql`：启用 RLS、创建 policies、撤销多余权限。
-4. `create_resource_rpcs.sql`：游客目录读取、原子浏览记录、相似资源查询、私人资源创建与数量限制函数。
+4. `create_resource_rpcs.sql`：游客目录读取、Mark、原子浏览记录、相似资源查询、私人资源创建/更新及数量限制函数。
 5. `seed.sql`：当前静态公共资源的一次性导入。
 6. `README.md`：本地执行、验证、回滚和远端应用步骤。
 
 这些 SQL 文件必须先经过人工评审和本地 Supabase 验证；在获得确认前，不对远端数据库执行任何迁移。
+
+### 8.1 旧数据迁移与回滚边界
+
+当前代码仍使用 `user_resources` 和 `checkins`，新设计使用统一的 `resources`、`resource_marks` 和 `resource_history`。实施时采用一次性切换，不做长期双写：
+
+1. 迁移前统计旧表行数，并导出可恢复备份。
+2. 创建新 schema 后，将 `user_resources` 映射写入 `resources`，逐项验证行数、所有者、分类和 URL。
+3. 前端发布切换到新 API 后，旧 `user_resources` 进入只读保留期；`checkins` 不属于本功能，保持原状。
+4. 观察期内如需回滚，只回滚前端读取路径，不删除新表和新写入数据。
+5. 验证期结束后，再通过独立 migration 删除旧资源写入路径；删除旧表必须另行确认。
+
+不采用双写，是因为它需要处理两边部分成功、重试和数据修复，会给当前小型项目增加一个没有业务价值的分布式一致性问题。
 
 ## 9. 其他实施决定
 
@@ -575,7 +690,7 @@ supabase/
 
 ### 10.3 打开资源
 
-浏览器先打开外部 URL，再异步记录浏览历史。历史写入失败不能阻止或延迟用户访问资源。
+浏览器先打开已经校验为 HTTP(S) 的外部 URL，再异步记录浏览历史。新标签页必须使用 `noopener,noreferrer`，防止外部网站通过 `window.opener` 控制原页面。历史写入失败不能阻止或延迟用户访问资源。
 
 ### 10.4 添加私人资源
 
@@ -590,45 +705,153 @@ supabase/
 
 ## 11. 并发一致性
 
-如果两个创建请求同时读到 199 条后分别插入，总量可能变成 201。因此创建 RPC 必须在事务中获取当前用户维度的事务锁，再依次检查总量、完全相同 URL 和相似资源数量：
+如果两个创建请求同时读到 199 条后分别插入，总量可能变成 201。因此创建和更新 RPC 都必须在事务中获取当前用户维度的事务锁，再依次检查总量、完全相同 URL 和本人相同 `normalized_url` 的私人资源数量：
 
 ```sql
 pg_advisory_xact_lock(...)
 ```
 
-同一用户的并发创建请求会短暂排队。锁必须基于数据库会话中的 `auth.uid()` 计算，不能信任客户端传入用户 ID。
+同一用户的并发创建和更新请求会短暂排队。锁必须基于数据库会话中的 `auth.uid()` 计算，不能信任客户端传入用户 ID。更新检查排除当前资源 ID。删除不会突破数量上限，继续由普通 RLS 删除完成，不为它增加不必要的事务锁。
+
+30 条是用户私人资源的写入门槛，不是公共与私人推荐结果的总量上限。管理员新增公共资源不获取用户级锁，也不占用或改变用户的私人资源额度。
 
 ## 12. 错误与交互处理
 
 - 未登录：打开登录弹窗并保留当前 URL。
 - 完全重复：不创建，展示已有资源推荐。
-- 相似资源达到 30 条：不创建，展示现有候选。
+- 本人同组私人资源达到 30 条：不创建，并展示公共资源和本人私人资源候选。
 - 私人资源达到 200 条：提示先删除旧资源。
 - 网络失败：保留表单内容并允许重试。
 - 权限失败：不展示数据库原始错误信息。
 - 浏览历史写入失败：不影响打开外部链接。
 - 删除私人资源：执行前二次确认。
 
-## 13. 测试设计
+## 13. 日志与可观测性
 
-### 13.1 数据库测试
+目标不是保存尽可能多的日志，而是在不泄露私人数据的前提下，能快速回答：哪个版本、哪个操作、哪类用户、在哪一层、因为什么失败。
+
+### 13.1 首版工具选择
+
+采用三类现有职责互补的工具：
+
+| 工具 | 首版用途 | 不用于 |
+|---|---|---|
+| Sentry 前端 SDK | 捕获未处理异常、API 失败上下文和发布版本 | 产品点击统计、保存数据库原始数据 |
+| Supabase Dashboard Logs | 排查 Auth、PostgREST、Postgres RPC、RLS 和慢查询 | React 渲染错误 |
+| 现有 Umami | 匿名产品事件和功能使用率 | 错误堆栈、权限诊断 |
+
+只使用 `console.error` 虽然零成本，但无法跨设备收集、按版本聚合或告警；自建日志表可以完全控制数据，却需要额外设计写入权限、清理、查询和告警，首版投入过大。因此选择托管前端错误平台 + Supabase 自带日志，不新增业务日志表。若未来有独立后端、合规留存要求或托管日志成本超过预算，再评估 OpenTelemetry 或自建集中日志。
+
+### 13.2 统一错误事件
+
+`src/api/` 为每次远端操作生成 UUID 格式的 `operationId`。记录错误时使用结构化字段，不拼接不可搜索的长句：
+
+```ts
+interface ErrorEventContext {
+  event: string;          // private_resource.create_failed
+  operationId: string;    // 同一次前端操作的关联 ID
+  errorCode: AppErrorCode;
+  layer: 'api' | 'service' | 'hook' | 'ui';
+  release: string;        // Git commit SHA
+  environment: 'development' | 'preview' | 'production';
+  durationMs?: number;
+  resourceId?: number;
+  category?: ResourceCategory;
+  sessionTraceId?: string; // 当前浏览器会话的随机 ID，不等于用户 ID
+}
+```
+
+RPC 可以接收客户端生成的 `operation_id` 作为诊断字段，但它不参与身份或权限判断。需要数据库侧定位时，RPC 只在失败分支记录错误码、函数名和 `operation_id`；权限判断仍只使用 `auth.uid()`。
+
+同一个前端错误只向 Sentry 上报一次：API 负责创建 `AppError`，Service 负责补充业务上下文，处理该错误的 Hook 负责调用 `errorReporter`；未被处理的渲染异常由 React Error Boundary 统一上报。各层禁止分别 `captureException`，否则同一故障会产生多条噪声记录。数据库端同一 `operation_id` 的日志属于跨系统关联，不算重复上报。
+
+### 13.3 事件命名与严重级别
+
+事件使用稳定的 `<domain>.<action>.<result>` 命名：
+
+```text
+auth.google.failed
+catalog.fetch.failed
+resource_mark.set.failed
+resource_history.record.failed
+private_resource.create.failed
+private_resource.update.failed
+space.fetch.failed
+```
+
+| 级别 | 条件 | 处理 |
+|---|---|---|
+| `info` | 用户主动取消、精确重复、达到 200/30 业务限额 | 默认不进错误告警；只做必要计数 |
+| `warning` | 单次网络失败、浏览历史写入失败、可恢复的第三方错误 | 记录并聚合；不打断主要操作 |
+| `error` | 未预期 RPC 错误、连续认证失败、数据映射失败、页面异常 | 进入 Sentry 并带 `operationId` |
+| `fatal` | 多用户数据越权迹象、目录整体不可用、迁移导致广泛失败 | 立即告警并停止相关发布 |
+
+“达到数量限制”和“精确重复”属于预期业务结果，不作为异常上报，避免错误平台充满无须修复的噪声。
+
+### 13.4 隐私与脱敏
+
+日志禁止包含：
+
+- access token、refresh token、session、cookie 和任何密钥；
+- 邮箱、OAuth 用户资料、完整或散列后的 `auth.users.id`；
+- 私人资源的名称、描述、标签；
+- 完整 URL 查询参数或 fragment，因为其中可能包含临时 token；
+- Supabase 原始错误全文直接展示给用户。
+
+允许记录资源数字 ID、category、稳定错误码、HTTP 状态、耗时、发布版本和脱敏后的域名。Sentry `beforeSend` 必须统一移除请求头、认证信息和敏感表单字段；生产 source map 上传后不得公开暴露。
+
+首版关闭 Session Replay（会话录屏），因为私人资源表单可能进入录制范围，当前排错目标通过错误堆栈、breadcrumbs 和结构化上下文即可完成。只有完成单独的遮罩与隐私评审后才能启用。
+
+首版也不启用全量性能 tracing，避免增加事件量与理解成本。先记录关键 API 的 `durationMs`；只有出现无法由 Supabase Logs 定位的持续延迟时，再对少量请求采样 tracing。
+
+### 13.5 告警、版本与排查流程
+
+首版只设置三个低噪声告警：
+
+1. 5 分钟内出现 5 次以上目录加载失败。
+2. 10 分钟内出现 5 次以上相同的未预期 `error`。
+3. 任意疑似跨用户访问或 `fatal` 事件立即通知维护者。
+
+每次部署必须写入 Git commit SHA 作为 `release`，并上传对应 source map。排查顺序固定为：用户反馈时间与操作 → Sentry 查 `operationId`、release 和堆栈 → Supabase Logs 查同时间 RPC/Auth/RLS 结果 → 本地使用相同 release 复现 → 修复后关联提交。日志保留期使用供应商当前套餐允许的默认值；若不足以覆盖实际反馈周期，再单独评估付费或导出，不在首版提前建设日志仓库。
+
+实现依据参考 [Sentry source map 官方文档](https://docs.sentry.io/platforms/javascript/sourcemaps/) 和 [Supabase Logs 官方文档](https://supabase.com/docs/guides/monitoring-and-debugging/logs)。具体 SDK 版本和套餐能力在实施时重新核对，设计文档不锁死易变化的价格与保留天数。
+
+### 13.6 降级规则
+
+- 日志上报失败不得阻止业务请求，也不得无限重试。
+- 浏览历史写入失败记录 `warning`，但外部链接照常打开。
+- Space 加载失败必须显示“加载失败/重试”，不能静默显示为空 Space，避免用户误以为数据丢失。
+- Mark 保存失败记录 `warning` 或 `error`，回滚乐观状态，并显示可重试提示。
+- Auth API 必须同时处理返回的 `error` 和真正抛出的异常。
+- 未预期错误的 UI 提示附带缩短后的 `operationId` 作为“诊断编号”，方便用户反馈；预期业务限制不显示诊断编号。
+
+## 14. 测试设计
+
+### 14.1 数据库测试
 
 - 游客 RPC 每个主题最多返回 6 条。
 - A 用户无法读取或修改 B 用户的资源、Mark 和历史。
 - 第 201 条私人资源被拒绝。
 - 完全相同 URL 被拒绝并返回推荐。
-- URL 不同但 `normalized_url` 相同的第 30 条允许，第 31 条拒绝。
-- 并发创建不会突破 200/30 上限。
+- URL 不同但 `normalized_url` 相同的本人第 30 条私人资源允许，第 31 条拒绝；公共资源不计入 30 条。
+- 并发创建、并发更新以及创建与更新同时发生时，不会突破本人 200/30 上限。
 - 其他用户的私人资源不会出现在相似推荐中。
+- 私人资源无法被 Mark，即使调用方绕过页面直接写表。
+- 浏览历史不能指向其他用户的私人资源。
+- 删除账号后，其私人资源、Mark 和历史均被级联删除。
+- 未授权角色不能执行受控 RPC；`SECURITY DEFINER` 固定 `search_path`。
 
-### 13.2 Service 与 API 测试
+### 14.2 Service 与 API 测试
 
 - URL 校验和标准化规则。
 - Supabase 数据行到应用类型的映射。
 - 重复、相似、超限错误映射。
 - Space 按主题分组、排序并隐藏空主题。
+- Auth SDK 返回 `{ error }` 时能正确映射，而不依赖异常抛出。
+- 需要身份的 API 不接受或转发调用方提供的 `userId`、`ownerId`。
+- 同一创建请求因响应丢失而重试时，返回已有资源而不新增重复行。
 
-### 13.3 组件测试
+### 14.3 组件测试
 
 - 游客锁定区和登录入口。
 - 星标乐观更新与失败回滚。
@@ -636,8 +859,9 @@ pg_advisory_xact_lock(...)
 - 相似资源确认后继续保存。
 - 浏览历史横向列表。
 - 私人资源编辑和删除确认。
+- Space 请求失败时展示错误和重试，不伪装成空 Space。
 
-### 13.4 端到端测试
+### 14.4 端到端测试
 
 ```text
 游客浏览 → 登录 → Mark 公共资源
@@ -646,17 +870,37 @@ pg_advisory_xact_lock(...)
 → 取消 Mark → 从 Space 移除
 ```
 
-## 14. 分阶段上线
+### 14.5 迁移与可观测性测试
 
-1. 建立数据库 schema、RLS、RPC 和测试，不连接生产页面。
-2. 导入并校验当前静态公共资源。
-3. 前端切换目录读取，验证游客每类 6 条。
-4. 上线邮箱魔法链接和 Google 登录。
-5. 上线 Mark、浏览历史和 Space。
-6. 上线私人资源、相似推荐和数量限制。
-7. 观察错误日志和用量后，再移除静态资源回滚路径。
+- migration 从空库完整升级成功，并能按 README 回滚前端读取路径。
+- 旧 `user_resources` 迁移前后行数、owner、category 和 URL 对账一致。
+- 构建产物不包含 `service_role` key、token 或生产 source map 公共地址。
+- 错误事件包含 `operationId`、`errorCode`、`release`、`environment` 和操作名。
+- Sentry 脱敏测试确认邮箱、token、私人资源内容和 URL 查询参数不会上报。
+- 日志平台不可用时，目录、Mark 和私人资源操作仍按各自业务规则运行。
 
-## 15. 验收重点
+### 14.6 测试工具
+
+| 范围 | 采用 | 原因 | 暂不选择 |
+|---|---|---|---|
+| TypeScript、Service、API、组件 | Vitest + React Testing Library | 与当前 Vite 项目集成简单，支持接近用户行为的组件测试 | Jest 可行，但需要更多 Vite/ESM 配置，当前没有迁移收益 |
+| 浏览器端到端 | Playwright | 适合验证 OAuth 回跳、多个登录身份、弹窗和新标签页行为 | Cypress 可行，但本项目没有依赖其专用调试界面的需求 |
+| 数据库 | 本地 Supabase + SQL 测试；复杂 policy 使用 pgTAP | 能在真实 Postgres、RLS 和 RPC 上验证权限与并发 | 仅 mock Supabase 无法证明 RLS 和事务锁正确 |
+
+首版不追求覆盖率数字本身。数据库权限、不变量和错误映射属于必须测试路径；纯展示样式只测试关键交互，避免把大量测试绑定到 DOM 结构。
+
+## 15. 分阶段上线
+
+1. 接入错误追踪、release 标记和日志脱敏，确保后续阶段发生错误时可定位。
+2. 建立数据库 schema、RLS、RPC 和测试，不连接生产页面。
+3. 导入并校验当前静态公共资源和已有 `user_resources` 数据。
+4. 前端切换目录读取，验证游客每类 6 条。
+5. 上线邮箱魔法链接和 Google 登录。
+6. 上线 Mark、浏览历史和 Space。
+7. 上线私人资源、相似推荐和数量限制。
+8. 观察错误日志和用量后，再移除静态资源回滚路径。
+
+## 16. 验收重点
 
 - 游客无法通过 Supabase REST API 绕过每类 6 条限制。
 - A 用户无法读取或修改 B 用户的私人资源、Mark 和历史。
@@ -664,9 +908,11 @@ pg_advisory_xact_lock(...)
 - 访问资源只更新历史，不自动 Mark。
 - 私人资源创建后立即出现在 Space 对应主题。
 - 完全相同 URL 已存在时不创建新资源，并返回公共或本人私人资源作为推荐。
-- URL 不同但 `normalized_url` 相同时，在少于 30 条且用户确认后允许创建。
-- 当前用户可见的相似资源达到 30 条时拒绝创建并返回推荐。
+- URL 不同但 `normalized_url` 相同时，在本人同组私人资源少于 30 条且用户确认后允许创建。
+- 本人相同 `normalized_url` 的私人资源达到 30 条时拒绝创建并返回推荐；公共资源数量不影响该限额。
 - 私人资源总数达到 200 条时拒绝创建；系统没有每日新增限制。
 - 同一资源反复访问只增加计数，不产生无限历史行。
-- API 文件中不存在 service-role key。
+- 源码、环境变量白名单和构建产物中均不存在 service-role key。
 - 页面和组件中不存在直接的 Supabase 表查询。
+- 私人资源不显示 Mark，且绕过 UI 直接调用数据库也无法 Mark 私人资源。
+- 线上错误可以通过 `operationId + release` 在前端错误平台和 Supabase Logs 中完成定位，日志不包含用户私人内容或认证凭据。
