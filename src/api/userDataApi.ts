@@ -3,7 +3,15 @@ import { supabase } from './supabaseClient';
 
 export type UserResourcesByCategoryId = Record<string, Resource[]>;
 
-function mapDbRowToResource(row: any): Resource {
+type UserResourceRow = {
+  category_id: unknown;
+  name: unknown;
+  description: unknown;
+  url: unknown;
+  tags: unknown;
+};
+
+function mapDbRowToResource(row: UserResourceRow): Resource {
   return {
     name: String(row.name ?? ''),
     description: String(row.description ?? ''),
@@ -24,7 +32,7 @@ export async function fetchUserResourcesByCategoryId(userId: string): Promise<Us
   if (error) throw error;
 
   const result: UserResourcesByCategoryId = {};
-  for (const row of data ?? []) {
+  for (const row of (data ?? []) as UserResourceRow[]) {
     const categoryId = String(row.category_id ?? '');
     if (!result[categoryId]) result[categoryId] = [];
     result[categoryId].push(mapDbRowToResource(row));

@@ -75,7 +75,7 @@ export function useSupabaseAuth(): AuthState {
         provider: 'weixin',
         options: { redirectTo },
       });
-    } catch (e) {
+    } catch {
       try {
         await supabase.auth.signInWithOAuth({
           provider: 'wechat',
@@ -95,4 +95,3 @@ export function useSupabaseAuth(): AuthState {
 
   return { user, loading, error, signInWithGoogle, signInWithWeChat, signOut };
 }
-
