@@ -66,7 +66,7 @@ export const categories: Category[] = [
       // { name: 'Tadoku', description: 'Extensive reading materials', url: 'https://tadoku.org/', tags: ['all levels'] },
       { name: '国立国会図書館サーチ', description: '标注了[インタネット公開]的可免费阅读', url: 'https://ndlsearch.ndl.go.jp/', tags: ['books'] },
       { name: '日语版人民中国', description: '国内新闻日语版', url: 'http://www.peoplechina.com.cn/', tags: ['news'] },
-      { name: '日语版人民网', description: '国内新闻日语版', url: 'https://j.people.com.cn/https://j.people.com.cn/', tags: ['news'] },
+      { name: '日语版人民网', description: '国内新闻日语版', url: 'https://j.people.com.cn/', tags: ['news'] },
       { name: 'JAXA‘s', description: '天文科普类文章', url: 'https://fanfun.jaxa.jp/jaxas/index.html', tags: ['paper'] },
  
     ]
@@ -81,10 +81,10 @@ export const categories: Category[] = [
       { name: 'Lang-8', description: '在这里问日本人关于日语的任何问题', url: 'https://lang-8.com/', tags: ['communication', 'community', ] },
       { name: 'J-STAGE', description: '日语论文参考网站', url: 'https://www.jstage.jst.go.jp/', tags: ['writing', 'papper', ] },
       { name: 'CiNii', description: '日语论文参考网站', url: 'https://cir.nii.ac.jp/', tags: ['writing', 'papper', ] },
-      { name: '国立国語研究所', description: '日语论文参考网站，标注「本文表示」可以下载', url: 'https://bibdb.ninjal.ac.jp/bunken/ja/https://bibdb.ninjal.ac.jp/bunken/ja/', tags: ['writing', 'papper', ] },
+      { name: '国立国語研究所', description: '日语论文参考网站，标注「本文表示」可以下载', url: 'https://bibdb.ninjal.ac.jp/bunken/ja/search', tags: ['writing', 'papper', ] },
       { name: '早稲田大学古典籍総合データ', description: '古典书籍数据库', url: 'https://www.wul.waseda.ac.jp/kotenseki/advanced_search.html', tags: ['writing', 'papper', ] },
       { name: '日本の服の歴史', description: '介绍日本服装历史', url: 'http://www.bb.em-net.ne.jp/~maccafushigi/index.html', tags: ['writing', 'papper', ] },
-      { name: '国立公文書館', description: '内阁文库公文书', url: 'https://bibdb.ninjal.ac.jp/bunken/ja/https://bibdb.ninjal.ac.jp/bunken/ja/', tags: ['writing', 'papper', ] },
+      { name: '国立公文書館', description: '内阁文库公文书', url: 'https://www.digital.archives.go.jp/', tags: ['writing', 'papper', ] },
      
       
     ]

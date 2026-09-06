@@ -28,7 +28,7 @@
 | Supabase Auth | 登录、会话、签发身份；提供 `auth.uid()` | 资源业务规则和页面授权提示 | `auth.users` 与已验证会话 |
 | PostgreSQL 表 | 持久化资源、Mark、历史等事实数据 | 页面展示顺序之外的视觉配置 | 表中已提交的数据 |
 | RLS | 对每一行执行读取、修改和删除隔离 | 复杂多步业务编排、友好错误提示 | `auth.uid()` 与目标行 |
-| Postgres RPC | 原子执行需要组合校验的读写：游客目录、私人资源创建/修改、数量限制、重复检查、历史 upsert | 渲染 UI、调用浏览器能力 | 同一事务内的数据库状态 |
+| Postgres RPC | 原子执行需要组合校验的读写：游客目录、私人资源及主题关联创建/修改、数量限制、重复检查、历史 upsert | 渲染 UI、调用浏览器能力 | 同一事务内的数据库状态 |
 | 约束、唯一索引与 Trigger | 保证结构不变量、阻止精确重复、统一生成 `normalized_url` 和更新时间 | 决定“相似资源”如何展示、代替完整业务流程 | 数据库 schema |
 | Supabase Dashboard 管理操作 | 维护首版公共资源 | 代表普通用户提交资源、绕过正式迁移修改生产结构 | 管理员身份与审计记录 |
 | 外部资源网站 | 提供最终学习内容 | 保证链接永久有效、向本系统回传学习状态 | 外部网站自身 |
@@ -63,7 +63,7 @@ UI → Hooks → Service → API → Supabase Auth / Postgres
 
 以下规则必须由数据库保证，不能只靠 UI 约定：
 
-1. `resources.owner_id IS NULL` 唯一表示公共资源；非空 UUID 唯一表示该用户的私人资源。
+1. `resources.owner_id IS NULL` 唯一表示公共资源；非空 UUID 唯一表示该用户的私人资源。公共资源可以关联多个主题，私人资源首版必须且只能关联一个主题。
 2. 普通用户只能读写自己的私人资源；公共资源只有管理员可写。
 3. 游客只能通过目录 RPC 获取每个主题排序最前的 6 条公共资源。
 4. 每个用户的私人资源总数不得超过 200；限制值由数据库函数集中提供。
@@ -189,7 +189,7 @@ type UserId = string;
 ```
 
 - 资源 ID 使用 PostgreSQL 自增 `bigint`。资源插入同一个数据库时由数据库自动分配，不由浏览器生成或传入。
-- 资源主题使用 PostgreSQL `resource_category` enum；前端对应为 `ResourceCategory` 字符串联合类型。
+- 资源主题使用 PostgreSQL `resource_category` enum，保存在资源与主题的关联表中；前端对应为 `ResourceCategory` 字符串联合类型。
 - 用户 ID 使用 Supabase Auth 原生 UUID。UUID 经 JSON 返回到 JavaScript 后表现为 `string`。
 
 资源主键定义为：
@@ -237,19 +237,17 @@ create type public.resource_category as enum (
 
 ### 5.2 `resources`
 
-统一保存公共资源和私人资源。
+统一保存公共资源和私人资源。这里一行代表一个可访问的资源实体；资源出现在哪些主题、在主题中的顺序，由 `resource_categories` 单独记录。
 
 | 字段 | PostgreSQL 类型 | 键/约束 | 约束说明 | 数据示例 |
 |---|---|---|---|---|
 | `id` | `bigint` | `PK` | 自增：`generated always as identity` | `301` |
-| `category` | `resource_category` | `NN` | 资源所属主题；取值由 `resource_category` enum 限制 | `listening` |
 | `owner_id` | `uuid` | `FK` | 可空；引用 `auth.users.id ON DELETE CASCADE`；`NULL` 表示公共资源，UUID 表示该用户的私人资源 | 公共资源：`NULL`；私人资源：`6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
 | `name` | `text` | `NN, CK` | trim 后 1～120 字符 | `NHK Easy News` |
 | `description` | `text` | `NN, CK` | trim 后 1～500 字符 | `带有注音和音频的简明日语新闻` |
 | `url` | `text` | `NN, CK` | trim 后 1～2048 字符，只接受 HTTP(S) | `https://www3.nhk.or.jp/news/easy/` |
-| `normalized_url` | `text` | `NN` | 相似资源分组键，由数据库 URL 标准化函数根据 `url` 生成 | `https://www3.nhk.or.jp/news/easy` |
+| `normalized_url` | `text` | `NN` | 相似资源的来源主机键，由数据库 URL 标准化函数根据 `url` 生成 | `www3.nhk.or.jp` |
 | `tags` | `text[]` | `NN, DF, CK` | 默认空数组；最多 10 项，每项 trim 后 1～30 字符 | `{"beginner","news"}` |
-| `sort_order` | `integer` | `NN, DF, CK` | 非负；公共资源展示顺序，私人资源默认 0 | `1` |
 | `created_at` | `timestamptz` | `NN, DF` | 默认 `now()` | `2026-09-01T10:30:00+09:00` |
 | `updated_at` | `timestamptz` | `NN, DF` | 默认 `now()`，trigger 自动更新 | `2026-09-01T14:45:00+09:00` |
 
@@ -271,7 +269,7 @@ create type public.resource_category as enum (
 | `url` 不同、`normalized_url` 相同，本人已有 30 条私人资源 | 禁止新增 | 展示相似推荐，但公共资源数量不影响该限额 |
 | `normalized_url` 不同 | 允许保存 | 正常创建私人资源 |
 
-`url` 在保存前会去除首尾空白并通过 URL 解析器校验；完全相同是指清理后的完整 URL 字符串相同。数据库 trigger 在插入或修改前调用统一标准化函数生成 `normalized_url`，客户端不能自行指定该字段。`normalized_url` 不建立唯一约束，只建立普通查询索引。
+`url` 在保存前会去除首尾空白并通过 URL 解析器校验；完全相同是指清理后的完整 URL 字符串相同。数据库 trigger 在插入或修改前调用统一标准化函数生成 `normalized_url`，客户端不能自行指定该字段。首版标准化键取小写主机名、忽略协议并移除普通 `www.` 前缀，例如阅读页与听力页虽然完整 URL 不同，但同属 `example.com`。这样符合“同一来源先推荐、仍允许保存不同直达链接”的需求；代价是 YouTube 等大型平台会被归为同一来源，后续若误报明显，再升级为可配置的来源识别规则。`normalized_url` 不建立唯一约束，只建立普通查询索引。
 
 公共资源可以通过数据库部分唯一索引避免管理员重复写入完全相同的 URL：
 
@@ -301,7 +299,21 @@ similar_resource_limit() returns integer   -- 30
 
 限制值改变时使用数据库 migration 执行 `create or replace function`，前端从 API 返回值读取限制，不另外写死数字。
 
-### 5.3 `resource_marks`
+### 5.3 `resource_categories`
+
+记录“资源放在哪个主题”的关系。同一个公共资源只在 `resources` 保存一次，但可以拥有多条主题关系。
+
+| 字段 | PostgreSQL 类型 | 键/约束 | 约束说明 | 数据示例 |
+|---|---|---|---|---|
+| `resource_id` | `bigint` | `PK, FK` | 联合主键的一部分；引用 `resources.id ON DELETE CASCADE` | `301` |
+| `category` | `resource_category` | `PK` | 联合主键的一部分；取值由 enum 限制 | `listening` |
+| `sort_order` | `integer` | `NN, DF, CK` | 默认 0，必须为非负整数；表示该资源在当前主题内的顺序 | `1` |
+
+主键 `(resource_id, category)` 防止同一资源在同一主题重复出现。公共资源允许关联多个主题。首版私人资源必须且只能关联一个主题；该业务约束由后续的创建/修改 RPC 在同一事务中维护，普通用户没有直接写关联表的权限。
+
+这里不再增加 `categories` 配置表：主题集合固定且改动需要随代码发布，enum 已能提供数据库约束；主题名称、图标和页面顺序仍由前端维护。关联表的必要性来自“一个资源可以属于多个主题”，而不是为了把 enum 再做成一张表。
+
+### 5.4 `resource_marks`
 
 只记录用户对公共资源的二元 Mark。
 
@@ -315,7 +327,7 @@ similar_resource_limit() returns integer   -- 30
 
 普通外键只能证明资源存在，不能证明它是公共资源。因此 Mark 的新增与取消必须调用 `set_resource_mark` RPC：RPC 从 `auth.uid()` 取得用户身份，并在写入前确认目标资源满足 `owner_id IS NULL`。普通用户没有该表的直接写权限；RLS 仍限制本人数据并要求关联资源为公共资源，形成纵深防御。
 
-### 5.4 `resource_history`
+### 5.5 `resource_history`
 
 每个用户与资源只保留一条汇总记录，防止浏览日志无限追加。
 
@@ -329,19 +341,19 @@ similar_resource_limit() returns integer   -- 30
 
 主键：`(user_id, resource_id)`。每次点击执行原子 upsert：已有行就增加 `visit_count` 并更新时间。
 
-### 5.5 删除行为
+### 5.6 删除行为
 
-- 删除私人资源时，级联删除它的浏览历史。
-- 删除公共资源时，级联删除相关 Mark 和历史；该操作仅管理员在 Dashboard 中执行。
+- 删除私人资源时，级联删除它的主题关系和浏览历史。
+- 删除公共资源时，级联删除它的主题关系、相关 Mark 和历史；该操作仅管理员在 Dashboard 中执行。
 - 删除账号的用户数据清理由 `user_id` 外键级联完成。
 
-### 5.6 索引
+### 5.7 索引
 
 至少建立：
 
 ```text
-resources(category, sort_order, id) where owner_id is null
-resources(owner_id, category, created_at desc, id) where owner_id is not null
+resource_categories(category, sort_order, resource_id)
+resources(owner_id, created_at desc, id) where owner_id is not null
 resources(normalized_url) where owner_id is null
 resources(owner_id, normalized_url) where owner_id is not null
 resource_history(user_id, last_visited_at desc, resource_id)
@@ -351,8 +363,8 @@ unique resources(owner_id, url) where owner_id is not null
 
 选择依据是实际查询的“筛选列在前、排序列在后”，并用部分索引排除无关行：
 
-- 公共目录按 `category` 筛选，再按 `sort_order, id` 稳定排序；游客每类前 6 条和登录用户完整目录都复用该索引。
-- Space 按 `owner_id, category` 找到用户私人资源，并按 `created_at DESC, id` 稳定排序。
+- 公共目录和 Space 都先按 `resource_categories.category` 找到主题内的资源，再按 `sort_order, resource_id` 稳定排序；同一索引也支持一个资源出现在多个主题。
+- 私人资源查询先按 `resources.owner_id` 隔离用户，再按 `created_at DESC, id` 稳定排序；主题筛选通过关联表完成。
 - 两个 `normalized_url` 索引分别服务公共资源和当前用户私人资源的相似推荐，避免扫描其他用户数据。
 - 历史先锁定 `user_id`，再按最近访问时间倒序读取前 30 条；`resource_id` 用作时间相同时的稳定排序键。
 - 两个部分唯一索引是精确 URL 防重的最后防线；跨“公共 + 当前用户私人”集合的重复仍由受控 RPC 检查。
@@ -421,7 +433,7 @@ export type ResourceCategory =
 
 export interface ResourceRecord {
   id: number; // 数据库自增 bigint；最终以 Supabase 生成类型为准
-  category: ResourceCategory;
+  category: ResourceCategory; // 来自 resource_categories 的当前主题位置
   name: string;
   description: string;
   url: string;
@@ -474,6 +486,8 @@ export interface AppError extends Error {
   retryable: boolean;
 }
 ```
+
+`ResourceRecord` 是面向页面的查询结果，不是 `resources` 表的逐列复制。API 会把 `resources` 与 `resource_categories` 联查后补上 `category` 和 `sortOrder`。因此同一个公共资源 ID 可以在不同主题结果中出现；它们共享同一个 Mark 状态和浏览历史。
 
 ### 7.2 文件边界
 
@@ -874,7 +888,7 @@ space.fetch.failed
 ### 14.5 建库、回滚与可观测性测试
 
 - migration 从空库完整升级成功，并能按 README 回滚前端读取路径。
-- `seed.sql` 导入结果与当前静态公共资源的数量、category、sort order 和 URL 对账一致。
+- `seed.sql` 导入结果与当前静态目录对账一致：37 个唯一公共资源、43 个主题位置，并保留各主题的 sort order。
 - 前端切回静态目录时，新数据库及已产生的用户数据不被删除或覆盖。
 - 构建产物不包含 `service_role` key、token 或生产 source map 公共地址。
 - 错误事件包含 `operationId`、`errorCode`、`release`、`environment` 和操作名。
