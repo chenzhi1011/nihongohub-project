@@ -1,6 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useResourceActions } from './useResourceActions';
+import { AppError } from '../errors/appError';
+import { configureErrorReporter } from '../observability/errorReporter';
 
 const input = {
   category: 'reading' as const, name: 'Resource', description: 'Description',
@@ -8,6 +10,68 @@ const input = {
 };
 
 describe('useResourceActions', () => {
+  it('reports a handled Mark failure once with its operation ID', async () => {
+    const reports: unknown[] = [];
+    configureErrorReporter((report) => reports.push(report));
+    const failure = new AppError({
+      code: 'NETWORK_ERROR',
+      message: 'Unable to update Mark',
+      operationId: '11111111-1111-4111-8111-111111111111',
+      retryable: true,
+    });
+    const { result, unmount } = renderHook(() => useResourceActions({
+      setResourceMark: vi.fn().mockRejectedValue(failure),
+      recordResourceVisit: vi.fn(),
+      createPrivateResource: vi.fn(),
+      updatePrivateResource: vi.fn(),
+      deletePrivateResource: vi.fn(),
+      refreshSpace: vi.fn(),
+    }));
+
+    await act(async () => {
+      await expect(result.current.toggleMark(5, false)).rejects.toBe(failure);
+    });
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      context: {
+        event: 'resource_mark_failed',
+        operationId: '11111111-1111-4111-8111-111111111111',
+        resourceId: 5,
+      },
+    });
+    unmount();
+    configureErrorReporter(null);
+  });
+
+  it('tracks a pending Mark and ignores a duplicate request for the same resource', async () => {
+    let finish!: () => void;
+    const setResourceMark = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const { result } = renderHook(() => useResourceActions({
+      setResourceMark,
+      recordResourceVisit: vi.fn(),
+      createPrivateResource: vi.fn(),
+      updatePrivateResource: vi.fn(),
+      deletePrivateResource: vi.fn(),
+      refreshSpace: vi.fn(),
+    }));
+
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.toggleMark(5, false);
+      void result.current.toggleMark(5, false);
+    });
+
+    expect(result.current.markPendingIds).toContain(5);
+    expect(setResourceMark).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      finish();
+      await first;
+    });
+    expect(result.current.markPendingIds).not.toContain(5);
+  });
+
   it('optimistically changes Mark and rolls back on failure', async () => {
     const setResourceMark = vi.fn().mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useResourceActions({

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   createPrivateResource,
   deletePrivateResource,
@@ -6,7 +6,26 @@ import {
   setResourceMark,
   updatePrivateResource,
 } from '../api/resourceApi';
+import { AppError } from '../errors/appError';
+import { reportError } from '../observability/errorReporter';
 import type { PrivateResourceInput, SavePrivateResourceResult } from '../types/resource';
+
+function reportHandledError(
+  error: unknown,
+  event: string,
+  details: { resourceId?: number; category?: PrivateResourceInput['category'] } = {},
+): void {
+  if (!(error instanceof AppError)) return;
+  const mode = import.meta.env.MODE;
+  const environment = mode === 'production' ? 'production' : mode === 'preview' ? 'preview' : 'development';
+  reportError(error, {
+    event,
+    layer: 'hook',
+    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ?? 'local',
+    environment,
+    ...details,
+  });
+}
 
 export type ResourceActionDependencies = {
   setResourceMark: typeof setResourceMark;
@@ -26,9 +45,16 @@ const defaultApiDependencies = {
 };
 
 export function useResourceActions(
-  dependencies: ResourceActionDependencies = { ...defaultApiDependencies, refreshSpace: async () => undefined },
+  dependencyOverrides: Partial<ResourceActionDependencies> = {},
 ) {
+  const dependencies: ResourceActionDependencies = useMemo(() => ({
+    ...defaultApiDependencies,
+    refreshSpace: async () => undefined,
+    ...dependencyOverrides,
+  }), [dependencyOverrides]);
   const [markOverrides, setMarkOverrides] = useState<Record<number, boolean>>({});
+  const pendingMarkIdsRef = useRef(new Set<number>());
+  const [markPendingIds, setMarkPendingIds] = useState<number[]>([]);
   const [error, setError] = useState<unknown>(null);
 
   const resolveMarked = useCallback(
@@ -37,6 +63,9 @@ export function useResourceActions(
   );
 
   const toggleMark = useCallback(async (resourceId: number, currentMarked: boolean) => {
+    if (pendingMarkIdsRef.current.has(resourceId)) return;
+    pendingMarkIdsRef.current.add(resourceId);
+    setMarkPendingIds(Array.from(pendingMarkIdsRef.current));
     const nextMarked = !currentMarked;
     setError(null);
     setMarkOverrides((current) => ({ ...current, [resourceId]: nextMarked }));
@@ -46,13 +75,18 @@ export function useResourceActions(
     } catch (nextError) {
       setMarkOverrides((current) => ({ ...current, [resourceId]: currentMarked }));
       setError(nextError);
+      reportHandledError(nextError, 'resource_mark_failed', { resourceId });
       throw nextError;
+    } finally {
+      pendingMarkIdsRef.current.delete(resourceId);
+      setMarkPendingIds(Array.from(pendingMarkIdsRef.current));
     }
   }, [dependencies]);
 
   const recordVisit = useCallback((resourceId: number): void => {
     void dependencies.recordResourceVisit(resourceId).catch((nextError) => {
       setError(nextError);
+      reportHandledError(nextError, 'resource_history_failed', { resourceId });
     });
   }, [dependencies]);
 
@@ -67,6 +101,7 @@ export function useResourceActions(
       return result;
     } catch (nextError) {
       setError(nextError);
+      reportHandledError(nextError, 'private_resource_create_failed', { category: input.category });
       throw nextError;
     }
   }, [dependencies]);
@@ -87,6 +122,7 @@ export function useResourceActions(
       return result;
     } catch (nextError) {
       setError(nextError);
+      reportHandledError(nextError, 'private_resource_update_failed', { resourceId, category: input.category });
       throw nextError;
     }
   }, [dependencies]);
@@ -98,12 +134,14 @@ export function useResourceActions(
       await dependencies.refreshSpace();
     } catch (nextError) {
       setError(nextError);
+      reportHandledError(nextError, 'private_resource_delete_failed', { resourceId });
       throw nextError;
     }
   }, [dependencies]);
 
   return {
     error,
+    markPendingIds,
     resolveMarked,
     toggleMark,
     recordVisit,

@@ -115,4 +115,11 @@ export const translations: TranslationMap = {
   loginWeChat: { zh: '微信登录', jp: 'WeChatでログイン' },
   logout: { zh: '退出', jp: 'ログアウト' },
   loginRequired: { zh: '请先登录', jp: '先にログインしてください' },
+  markResource: { zh: 'Mark 资源', jp: 'リソースをMark' },
+  unmarkResource: { zh: '取消 Mark', jp: 'Markを解除' },
+  lockedResources: { zh: '还有 {count} 个资源，登录后可见', jp: 'ログインすると、あと{count}件のリソースを閲覧できます' },
+  loginToViewMore: { zh: '登录查看更多', jp: 'ログインして続きを見る' },
+  catalogLoading: { zh: '正在加载资源…', jp: 'リソースを読み込んでいます…' },
+  catalogLoadFailed: { zh: '资源加载失败，请稍后重试。', jp: 'リソースを読み込めませんでした。もう一度お試しください。' },
+  retry: { zh: '重试', jp: '再試行' },
 };

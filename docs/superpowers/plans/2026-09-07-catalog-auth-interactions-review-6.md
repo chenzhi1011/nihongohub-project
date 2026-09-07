@@ -82,11 +82,12 @@ Expected: all focused tests PASS with no console warnings.
 - Create: `src/components/LockedResourcesCard.test.tsx`
 - Modify: `src/pages/CategoryPage.tsx`
 - Create: `src/pages/CategoryPage.test.tsx`
+- Modify: `src/pages/HomePage.tsx`
 - Modify: `src/pages/SearchResults.tsx`
 - Modify: `src/hooks/useHubApp.ts`
 - Create: `src/hooks/useHubApp.test.tsx`
 
-- [ ] **Step 1: Write failing catalog UI tests**
+- [x] **Step 1: Write failing catalog UI tests**
 
 Cover:
 
@@ -95,21 +96,22 @@ it('renders only resources returned by CategoryCatalog');
 it('shows one guest lock card with the server supplied locked count');
 it('does not show a lock card when lockedCount is zero');
 it('searches only the catalog supplied to useHubApp');
+it('shows authorized catalog counts on the home page');
 ```
 
 The lock card calls `onLoginRequired`; it must not synthesize or reveal hidden resource names.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `npm test -- src/components/LockedResourcesCard.test.tsx src/pages/CategoryPage.test.tsx src/hooks/useHubApp.test.tsx`
 
 Expected: FAIL because pages still consume the static `Category` model.
 
-- [ ] **Step 3: Implement the authorized catalog adapter**
+- [x] **Step 3: Implement the authorized catalog adapter**
 
-Pass `CategoryCatalog[]` into `useHubApp(catalog)` and use `searchVisibleCatalog`. Map category metadata (icon and translated name) from the existing static category configuration, but never read its `resources`. `CategoryPage` accepts one `CategoryCatalog`; it renders exactly `resources` plus an optional `LockedResourcesCard`.
+Pass `CategoryCatalog[]` into `useHubApp(catalog)` and use `searchVisibleCatalog`. Map category metadata (icon and translated name) from the existing static category configuration, but never read its `resources`. `CategoryPage` accepts one `CategoryCatalog`; it renders exactly `resources` plus an optional `LockedResourcesCard`. Home counts use `CategoryCatalog.totalCount`, not the length of static arrays.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `npm test -- src/components/LockedResourcesCard.test.tsx src/pages/CategoryPage.test.tsx src/hooks/useHubApp.test.tsx`
 
@@ -123,7 +125,7 @@ Expected: all focused tests PASS.
 - Modify: `src/pages/CategoryPage.tsx`
 - Modify: `src/pages/SearchResults.tsx`
 
-- [ ] **Step 1: Write failing interaction tests**
+- [x] **Step 1: Write failing interaction tests**
 
 Cover:
 
@@ -136,13 +138,13 @@ it('calls onVisit without preventing an HTTP(S) link from opening');
 
 Assert `aria-pressed` and accessible labels rather than icon SVG structure.
 
-- [ ] **Step 2: Run test and verify RED**
+- [x] **Step 2: Run test and verify RED**
 
 Run: `npm test -- src/components/ResourceCard.test.tsx`
 
 Expected: FAIL because the current card has no Mark or visit callbacks.
 
-- [ ] **Step 3: Implement minimal resource interactions**
+- [x] **Step 3: Implement minimal resource interactions**
 
 Use this component contract:
 
@@ -163,7 +165,7 @@ type ResourceCardProps = {
 
 The star is available only when `resource.source === 'public'`. For guests, clicking the unfilled star opens login and does not call the Mark mutation. The external anchor remains a native `_blank` link with `noopener noreferrer`; its click handler only schedules `onVisit` for authenticated users.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `npm test -- src/components/ResourceCard.test.tsx src/pages/CategoryPage.test.tsx`
 
@@ -177,7 +179,7 @@ Expected: all focused tests PASS.
 - Modify: `src/hooks/useResourceActions.ts`
 - Modify: `src/hooks/useResourceActions.test.tsx`
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Cover:
 
@@ -191,17 +193,17 @@ it('records visits only for authenticated users');
 
 Mock hooks at their module boundaries, not Supabase query chains.
 
-- [ ] **Step 2: Run test and verify RED**
+- [x] **Step 2: Run test and verify RED**
 
 Run: `npm test -- src/App.test.tsx src/hooks/useResourceActions.test.tsx`
 
 Expected: FAIL because `App` still uses static catalog data and the action hook does not expose pending Mark IDs.
 
-- [ ] **Step 3: Compose existing hooks**
+- [x] **Step 3: Compose existing hooks**
 
 Call `useCatalog()` and `useResourceActions()` in `App`. Add `markPendingIds` to the action hook so repeated clicks for the same resource are disabled until the mutation settles. Render explicit loading and retry states. Send handled errors to the existing `errorReporter` once from the hook; UI displays stable, user-facing text and a shortened diagnostic ID only when available.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `npm test -- src/App.test.tsx src/hooks/useResourceActions.test.tsx`
 
