@@ -12,6 +12,14 @@ const t = (key: string) => ({
   spaceLoadFailed: 'Space 加载失败',
   retry: '重试',
   spaceEmpty: '你的 Space 还是空的',
+  addResource: '添加资源',
+  resourceCategory: '主题',
+  resourceName: '名称',
+  resourceDescription: '描述',
+  resourceUrl: 'URL',
+  resourceTags: '标签',
+  saveResource: '保存',
+  close: '关闭',
 }[key] ?? key);
 
 const emptySnapshot: SpaceSnapshot = { recentHistory: [], sections: [] };
@@ -49,6 +57,7 @@ const renderSpace = (overrides: Partial<React.ComponentProps<typeof SpacePage>> 
     markPendingIds: [],
     onToggleMark: vi.fn(),
     onVisit: vi.fn(),
+    onCreateResource: vi.fn().mockResolvedValue({ status: 'saved', resourceId: 24 }),
     ...overrides,
   };
   render(<SpacePage {...props} />);
@@ -82,6 +91,20 @@ describe('SpacePage states', () => {
   it('shows a genuine empty state after a successful empty snapshot', () => {
     renderSpace();
     expect(screen.getByText('你的 Space 还是空的')).toBeInTheDocument();
+  });
+
+  it('opens private resource creation for an authenticated user', async () => {
+    renderSpace();
+
+    await userEvent.click(screen.getByRole('button', { name: '添加资源' }));
+
+    expect(screen.getByRole('dialog', { name: '添加资源' })).toBeInTheDocument();
+  });
+
+  it('does not expose private resource creation to an anonymous user', () => {
+    renderSpace({ authenticated: false });
+
+    expect(screen.queryByRole('button', { name: '添加资源' })).not.toBeInTheDocument();
   });
 
   it('renders history and non-empty theme sections in snapshot order', () => {

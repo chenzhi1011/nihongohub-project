@@ -1,6 +1,9 @@
-import type { SpaceSnapshot } from '../types/resource';
+import { useState } from 'react';
+import type { PrivateResourceInput, SavePrivateResourceResult, SpaceSnapshot } from '../types/resource';
 import { categories } from '../data/categories';
+import { AddResourceButton } from '../components/AddResourceButton';
 import { HistoryRail } from '../components/HistoryRail';
+import { PrivateResourceDialog } from '../components/PrivateResourceDialog';
 import { ResourceCard } from '../components/ResourceCard';
 
 type Props = {
@@ -16,6 +19,7 @@ type Props = {
   markPendingIds: number[];
   onToggleMark: (resourceId: number, marked: boolean) => void;
   onVisit: (resourceId: number) => void;
+  onCreateResource: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
 };
 
 export function SpacePage({
@@ -31,7 +35,9 @@ export function SpacePage({
   markPendingIds,
   onToggleMark,
   onVisit,
+  onCreateResource,
 }: Props) {
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const textColor = darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]';
   const mutedColor = darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]';
 
@@ -68,7 +74,12 @@ export function SpacePage({
 
   return (
     <section>
-      <h1 className={`text-3xl font-bold ${textColor}`}>{t('space')}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className={`text-3xl font-bold ${textColor}`}>{t('space')}</h1>
+        <div className="w-48">
+          <AddResourceButton darkMode={darkMode} t={t} onClick={() => setCreateDialogOpen(true)} />
+        </div>
+      </div>
       {empty ? (
         <p className={`mt-4 ${mutedColor}`}>{t('spaceEmpty')}</p>
       ) : (
@@ -124,6 +135,14 @@ export function SpacePage({
           })}
         </div>
       )}
+      <PrivateResourceDialog
+        open={createDialogOpen}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setCreateDialogOpen(false)}
+        onCreate={onCreateResource}
+        onMarkRecommendation={onToggleMark}
+      />
     </section>
   );
 }

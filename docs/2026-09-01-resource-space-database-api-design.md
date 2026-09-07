@@ -2,7 +2,7 @@
 
 - 日期：2026-09-01
 - 最后修订：2026-09-07
-- 状态：设计已确认；schema、RLS、RPC、授权目录与个人 Space 页面已在隔离 worktree 实现并通过本地测试，私人资源表单与生产环境连接尚未执行
+- 状态：设计已确认；schema、RLS、RPC、授权目录、个人 Space 页面与私人资源新增表单已在隔离 worktree 实现并通过本地测试，生产环境连接尚未执行
 - 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 
@@ -608,10 +608,10 @@ deletePrivateResource(resourceId: number): Promise<void>
 
 创建流程：
 
-1. 表单失焦或用户点击保存时调用 `findSimilarResources`。
-2. 查询全部公共资源和当前用户私人资源，精确匹配排在最前，相同 `normalized_url` 的结果随后展示；推荐响应最多返回 10 条，但该返回上限不等于私人资源限额。
+1. 用户第一次点击保存时直接调用 `createPrivateResource(..., { similarResourcesReviewed: false })`，避免一次独立预查询与实际写入之间出现竞态。
+2. RPC 在同一事务中查询全部公共资源和当前用户私人资源；精确匹配排在最前，相同 `normalized_url` 的结果随后展示。推荐响应最多返回 10 条，但该返回上限不等于私人资源限额。
 3. 存在完全相同的 `url` 时不显示“仍然保存”，只允许直接 Mark 公共资源或查看已有私人资源。
-4. 只有相同 `normalized_url` 时，用户看过推荐结果后可以选择“仍然保存”。
+4. 只有相同 `normalized_url` 时，RPC 返回 `similar_review_required`；用户看过推荐后可以选择“仍然保存”，前端再调用 `createPrivateResource(..., { similarResourcesReviewed: true })`。
 5. `createPrivateResource` 不能信任前端预检查结果；数据库 RPC 在写入事务中重新检查完全相同 URL、本人同组私人资源 30 条上限和本人私人资源总量 200 条上限。
 6. `similarResourcesReviewed` 只代表交互确认，不替代数据库安全检查。
 7. 更新现有私人资源时，相似和重复检查必须排除当前正在编辑的 `resourceId`，并使用与创建相同的用户级事务锁。
@@ -740,10 +740,11 @@ supabase/
 
 ```text
 填写 URL
-→ findSimilarResources()
+→ createPrivateResource(reviewed=false)
+→ RPC 原子检查完全相同 URL、总量和同源数量
 → 完全相同：禁止新增，推荐已有资源
-→ 仅 normalized_url 相同：展示推荐，允许确认后继续
-→ createPrivateResource RPC 再次检查
+→ 仅 normalized_url 相同：展示推荐
+→ 用户确认后 createPrivateResource(reviewed=true)，RPC 再次检查
 → 创建成功后加入 Space 对应主题
 ```
 

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   },
   spaceEnabled: [] as boolean[],
   resourceDependencies: null as null | { refreshSpace: () => Promise<unknown> },
+  createResource: vi.fn(),
 }));
 
 vi.mock('./hooks/useCatalog', () => ({
@@ -55,6 +56,7 @@ vi.mock('./hooks/useResourceActions', () => ({
     resolveMarked: (_id: number, marked: boolean) => marked,
     toggleMark: vi.fn(),
     recordVisit: vi.fn(),
+    createResource: mocks.createResource,
   });
   },
 }));
@@ -75,6 +77,7 @@ describe('App catalog states', () => {
     mocks.space.retry.mockClear();
     mocks.spaceEnabled.length = 0;
     mocks.resourceDependencies = null;
+    mocks.createResource.mockReset();
   });
 
   it('shows catalog loading before rendering catalog pages', () => {
@@ -132,5 +135,17 @@ describe('App catalog states', () => {
 
     expect(mocks.catalog.retry).toHaveBeenCalledOnce();
     expect(mocks.space.retry).toHaveBeenCalledOnce();
+  });
+
+  it('connects private resource creation from Space to the action hook', async () => {
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    mocks.catalog.loading = false;
+    mocks.space.data = { recentHistory: [], sections: [] };
+    mocks.createResource.mockResolvedValue({ status: 'saved', resourceId: 88 });
+    render(<MemoryRouter initialEntries={['/space']}><App /></MemoryRouter>);
+
+    await userEvent.click(screen.getByRole('button', { name: /リソースを追加|添加资源/ }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

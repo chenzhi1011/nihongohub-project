@@ -145,6 +145,7 @@ function App() {
             markPendingIds={resourceActions.markPendingIds}
             onToggleMark={(resourceId, marked) => void resourceActions.toggleMark(resourceId, marked)}
             onVisit={resourceActions.recordVisit}
+            onCreateResource={resourceActions.createResource}
           />
         ) : catalog.loading ? (
           <p role="status" className={darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}>{t('catalogLoading')}</p>
