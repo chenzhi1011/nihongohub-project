@@ -185,3 +185,36 @@ export function mapHistoryRows(rows: unknown[]): HistoryItem[] {
     };
   });
 }
+
+export function mapPrivateResourceRows(rows: unknown[]): ResourceRecord[] {
+  return rows.map((candidate) => {
+    if (!isRecord(candidate)
+      || typeof candidate.id !== 'number'
+      || typeof candidate.name !== 'string'
+      || typeof candidate.description !== 'string'
+      || typeof candidate.url !== 'string'
+      || !isStringArray(candidate.tags)
+      || !Array.isArray(candidate.resource_categories)) {
+      throw new Error('Invalid private resource row');
+    }
+
+    const placements = candidate.resource_categories.filter(
+      (placement): placement is { category: ResourceCategory; sort_order: number } =>
+        isRecord(placement) && isCategory(placement.category) && typeof placement.sort_order === 'number',
+    );
+    if (placements.length !== 1) throw new Error('Invalid private resource row');
+    const placement = placements[0];
+
+    return {
+      id: candidate.id,
+      category: placement.category,
+      name: candidate.name,
+      description: candidate.description,
+      url: candidate.url,
+      tags: candidate.tags,
+      source: 'private',
+      marked: false,
+      sortOrder: placement.sort_order,
+    };
+  });
+}

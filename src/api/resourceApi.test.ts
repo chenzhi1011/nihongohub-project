@@ -100,4 +100,21 @@ describe('resourceApi', () => {
     expect(limit).toHaveBeenCalledWith(30);
     expect(result[0]).toMatchObject({ visitCount: 2, resource: { id: 3 } });
   });
+
+  it('reads private resources without a caller-provided user id', async () => {
+    const order = vi.fn().mockResolvedValue({ data: [{
+      id: 21, name: 'Mine', description: 'Private', url: 'https://mine.example.test', tags: [],
+      resource_categories: [{ category: 'basic', sort_order: 0 }],
+    }], error: null });
+    const not = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ not });
+    const from = vi.fn().mockReturnValue({ select });
+    const api = createResourceApi({ from } as unknown as AppSupabaseClient);
+
+    const result = await api.fetchPrivateResources();
+
+    expect(from).toHaveBeenCalledWith('resources');
+    expect(not).toHaveBeenCalledWith('owner_id', 'is', null);
+    expect(result[0]).toMatchObject({ id: 21, source: 'private', category: 'basic' });
+  });
 });

@@ -8,54 +8,15 @@ import {
   searchResources,
 } from '../service/catalogService';
 import type { Language, TodaysPhrase } from '../data/types';
-import type { Resource } from '../data/types';
-import { fetchUserResourcesByCategoryId, insertUserResource, type UserResourcesByCategoryId } from '../api/userDataApi';
-import { saveUserResourcesByCategoryId } from '../service/userResourcesService';
 
-export function useHubApp({ userId }: { userId: string | null }) {
+export function useHubApp() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const baseCategoryList = useMemo(() => catalogDataApi.fetchCategories(), []);
   const translationMap = useMemo(() => catalogDataApi.fetchTranslations(), []);
 
-  const [userResourcesByCategoryId, setUserResourcesByCategoryId] = useState<UserResourcesByCategoryId>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (!userId) {
-        setUserResourcesByCategoryId({});
-        return;
-      }
-      const data = await fetchUserResourcesByCategoryId(userId);
-      if (!cancelled) setUserResourcesByCategoryId(data);
-    }
-
-    run().catch(() => {
-      // 获取失败时保持空的 user resources，让页面至少可用
-      if (!cancelled) setUserResourcesByCategoryId({});
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const categoryList = useMemo(() => {
-    return baseCategoryList.map((category) => {
-      const userResources = userResourcesByCategoryId[category.id] ?? [];
-      return {
-        ...category,
-        resources: [...category.resources, ...userResources],
-      };
-    });
-  }, [baseCategoryList, userResourcesByCategoryId]);
-
-  useEffect(() => {
-    saveUserResourcesByCategoryId(userResourcesByCategoryId);
-  }, [userResourcesByCategoryId]);
+  const categoryList = baseCategoryList;
 
   const [activeCategory, setActiveCategory] = useState(() =>
     resolveActiveCategoryId(location.pathname, categoryList),
@@ -89,21 +50,6 @@ export function useHubApp({ userId }: { userId: string | null }) {
     [navigate],
   );
 
-  const addUserResource = useCallback(
-    async (categoryId: string, resource: Resource) => {
-      if (!userId) return;
-      await insertUserResource({
-        userId,
-        categoryId,
-        resource,
-        isPrivate: true,
-      });
-      const refreshed = await fetchUserResourcesByCategoryId(userId);
-      setUserResourcesByCategoryId(refreshed);
-    },
-    [userId],
-  );
-
   return {
     categoryList,
     activeCategory,
@@ -119,6 +65,5 @@ export function useHubApp({ userId }: { userId: string | null }) {
     t,
     filteredResources,
     handleCategoryClick,
-    addUserResource,
   };
 }

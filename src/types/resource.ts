@@ -11,6 +11,10 @@ export type ResourceCategory =
   | 'japan'
   | 'weekly';
 
+export const RESOURCE_CATEGORY_ORDER: readonly ResourceCategory[] = [
+  'basic', 'exam', 'listening', 'speaking', 'reading', 'writing', 'tools', 'japan', 'weekly',
+];
+
 export type ResourceSource = 'public' | 'private';
 
 export interface ResourceRecord {
@@ -44,6 +48,16 @@ export interface HistoryItem {
   resource: ResourceRecord;
   visitCount: number;
   lastVisitedAt: string;
+}
+
+export interface SpaceSection {
+  category: ResourceCategory;
+  resources: ResourceRecord[];
+}
+
+export interface SpaceSnapshot {
+  recentHistory: HistoryItem[];
+  sections: SpaceSection[];
 }
 
 export interface SimilarResourceMatch {

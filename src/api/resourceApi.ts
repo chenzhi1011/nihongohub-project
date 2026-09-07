@@ -1,7 +1,7 @@
 import { AppError, createOperationId } from '../errors/appError';
-import type { HistoryItem, PrivateResourceInput, SavePrivateResourceResult, SimilarResourceMatch } from '../types/resource';
+import type { HistoryItem, PrivateResourceInput, ResourceRecord, SavePrivateResourceResult, SimilarResourceMatch } from '../types/resource';
 import { toAppError } from './apiError';
-import { mapHistoryRows, mapMutationResult, mapSimilarRows } from './resourceMappers';
+import { mapHistoryRows, mapMutationResult, mapPrivateResourceRows, mapSimilarRows } from './resourceMappers';
 import { supabase, type AppSupabaseClient } from './supabaseClient';
 
 type SimilarReviewOptions = { similarResourcesReviewed: boolean };
@@ -69,6 +69,25 @@ export function createResourceApi(client: AppSupabaseClient | null) {
       });
     },
 
+    fetchPrivateResources(): Promise<ResourceRecord[]> {
+      return run(async (configured) => {
+        const { data, error } = await configured
+          .from('resources')
+          .select(`
+            id,
+            name,
+            description,
+            url,
+            tags,
+            resource_categories(category, sort_order)
+          `)
+          .not('owner_id', 'is', null)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return mapPrivateResourceRows(data ?? []);
+      });
+    },
+
     findSimilarResources(url: string, excludeResourceId?: number): Promise<SimilarResourceMatch[]> {
       return run(async (configured) => {
         const { data, error } = await configured.rpc('find_similar_resources', {
@@ -132,6 +151,7 @@ const resourceApi = createResourceApi(supabase);
 export const setResourceMark = resourceApi.setResourceMark;
 export const recordResourceVisit = resourceApi.recordResourceVisit;
 export const fetchRecentHistory = resourceApi.fetchRecentHistory;
+export const fetchPrivateResources = resourceApi.fetchPrivateResources;
 export const findSimilarResources = resourceApi.findSimilarResources;
 export const createPrivateResource = resourceApi.createPrivateResource;
 export const updatePrivateResource = resourceApi.updatePrivateResource;

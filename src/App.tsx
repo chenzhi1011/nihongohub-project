@@ -17,7 +17,6 @@ function App() {
     signOut,
   } = useSupabaseAuth();
 
-  const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
 
   const {
@@ -35,7 +34,7 @@ function App() {
     t,
     filteredResources,
     handleCategoryClick,
-  } = useHubApp({ userId });
+  } = useHubApp();
 
   const activeCategoryData = categoryList.find((c) => c.id === activeCategory);
 

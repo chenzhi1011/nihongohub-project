@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapCatalogRows, mapHistoryRows, mapMutationResult, mapSimilarRows } from './resourceMappers';
+import { mapCatalogRows, mapHistoryRows, mapMutationResult, mapPrivateResourceRows, mapSimilarRows } from './resourceMappers';
 
 describe('resource transport mappers', () => {
   it('groups catalog rows while preserving one canonical id across themes', () => {
@@ -74,6 +74,22 @@ describe('resource transport mappers', () => {
         marked: false, sortOrder: 4,
       },
     }]);
+  });
+
+  it('maps one private resource with its single theme placement', () => {
+    expect(mapPrivateResourceRows([{
+      id: 31, name: 'Mine', description: 'Private', url: 'https://mine.example.test',
+      tags: ['mine'], resource_categories: [{ category: 'speaking', sort_order: 0 }],
+    }])).toEqual([{
+      id: 31, category: 'speaking', name: 'Mine', description: 'Private',
+      url: 'https://mine.example.test', tags: ['mine'], source: 'private',
+      marked: false, sortOrder: 0,
+    }]);
+
+    expect(() => mapPrivateResourceRows([{
+      id: 32, name: 'Broken', description: 'No placement', url: 'https://broken.example.test',
+      tags: [], resource_categories: [],
+    }])).toThrow('Invalid private resource row');
   });
 
   it('rejects malformed RPC payloads at the API boundary', () => {
