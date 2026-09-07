@@ -1,5 +1,7 @@
 import { Search } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
+import { useState } from 'react';
+import { AuthDialog } from './components/AuthDialog';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { FeedbackFab } from './components/FeedbackFab';
@@ -14,8 +16,11 @@ function App() {
   const {
     user,
     loading: authLoading,
+    error: authError,
+    signInWithGoogle,
     signOut,
   } = useSupabaseAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   const userEmail = user?.email ?? null;
 
@@ -54,7 +59,18 @@ function App() {
         t={t}
         userEmail={userEmail}
         authLoading={authLoading}
+        onOpenLogin={() => setAuthDialogOpen(true)}
+        onOpenSpace={() => handleCategoryClick('space')}
         onSignOut={signOut}
+      />
+
+      <AuthDialog
+        open={authDialogOpen}
+        darkMode={darkMode}
+        error={authError}
+        t={t}
+        onClose={() => setAuthDialogOpen(false)}
+        onGoogleLogin={signInWithGoogle}
       />
 
       {activeCategory === 'home' && (
