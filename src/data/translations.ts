@@ -122,4 +122,9 @@ export const translations: TranslationMap = {
   catalogLoading: { zh: '正在加载资源…', jp: 'リソースを読み込んでいます…' },
   catalogLoadFailed: { zh: '资源加载失败，请稍后重试。', jp: 'リソースを読み込めませんでした。もう一度お試しください。' },
   retry: { zh: '重试', jp: '再試行' },
+  spaceLoading: { zh: '正在加载 Space…', jp: 'Spaceを読み込んでいます…' },
+  spaceLoadFailed: { zh: 'Space 加载失败，请稍后重试。', jp: 'Spaceを読み込めませんでした。もう一度お試しください。' },
+  spaceEmpty: { zh: '你的 Space 还是空的。Mark 公共资源后，它们会出现在这里。', jp: 'Spaceはまだ空です。公開リソースをMarkすると、ここに表示されます。' },
+  recentHistory: { zh: '浏览历史', jp: '閲覧履歴' },
+  visitCount: { zh: '访问 {count} 次', jp: '{count}回閲覧' },
 };

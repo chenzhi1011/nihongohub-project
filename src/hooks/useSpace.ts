@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchCatalog } from '../api/resourceCatalogApi';
 import { fetchPrivateResources, fetchRecentHistory } from '../api/resourceApi';
 import { buildSpaceSnapshot } from '../service/spaceService';
+import { AppError } from '../errors/appError';
+import { reportError } from '../observability/errorReporter';
 import type { CategoryCatalog, HistoryItem, ResourceRecord, SpaceSnapshot } from '../types/resource';
 
 export type SpaceDependencies = {
@@ -40,6 +42,15 @@ export function useSpace(enabled: boolean, dependencies: SpaceDependencies = def
       if (requestVersion.current === version) {
         setData(null);
         setError(nextError);
+        if (nextError instanceof AppError) {
+          const mode = import.meta.env.MODE;
+          reportError(nextError, {
+            event: 'space_fetch_failed',
+            layer: 'hook',
+            release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ?? 'local',
+            environment: mode === 'production' ? 'production' : mode === 'preview' ? 'preview' : 'development',
+          });
+        }
       }
     } finally {
       if (requestVersion.current === version) setLoading(false);

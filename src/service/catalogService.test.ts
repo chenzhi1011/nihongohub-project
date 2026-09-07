@@ -21,6 +21,10 @@ describe('resolveActiveCategoryId', () => {
     expect(resolveActiveCategoryId('/listening', categories)).toBe('listening');
     expect(resolveActiveCategoryId('/missing', categories)).toBe('home');
   });
+
+  it('resolves /space without treating it as a resource category', () => {
+    expect(resolveActiveCategoryId('/space', categories)).toBe('space');
+  });
 });
 
 describe('makeTranslator', () => {

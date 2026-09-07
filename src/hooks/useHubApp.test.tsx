@@ -35,4 +35,13 @@ describe('useHubApp authorized catalog', () => {
     expect(result.current.filteredResources).toHaveLength(1);
     expect(result.current.filteredResources[0]).toMatchObject({ id: 91, category: 'listening' });
   });
+
+  it('keeps the Space route active', () => {
+    const spaceWrapper = ({ children }: PropsWithChildren) => (
+      <MemoryRouter initialEntries={['/space']}>{children}</MemoryRouter>
+    );
+    const { result } = renderHook(() => useHubApp(catalog), { wrapper: spaceWrapper });
+
+    expect(result.current.activeCategory).toBe('space');
+  });
 });

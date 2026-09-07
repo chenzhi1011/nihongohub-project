@@ -2,7 +2,7 @@
 
 - 日期：2026-09-01
 - 最后修订：2026-09-07
-- 状态：设计已确认；schema、RLS 与 RPC 已在隔离 worktree 的本地 Supabase 实现并通过测试，尚未连接生产环境
+- 状态：设计已确认；schema、RLS、RPC、授权目录与个人 Space 页面已在隔离 worktree 实现并通过本地测试，私人资源表单与生产环境连接尚未执行
 - 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 
@@ -629,20 +629,13 @@ Service 层校验：
 
 ### 7.7 Space API
 
-```ts
-fetchSpace(): Promise<{
-  recentHistory: HistoryItem[];
-  sections: SpaceSection[];
-}>
-```
-
-实现可以并行读取：
+`useSpace` 并行读取：
 
 1. 最近 30 条浏览历史。
 2. 当前用户的 Mark 及对应公共资源。
 3. 当前用户的私人资源。
 
-`spaceService` 按前端 `src/data/categories.ts` 中的既定主题顺序分组和排序，并过滤空主题。页面只消费最终 `sections`。
+`spaceService` 把三个结果组合成 `SpaceSnapshot`，按前端 `src/data/categories.ts` 中的既定主题顺序分组和排序，并过滤空主题。`SpacePage` 只消费该快照，不调用 API：顶部历史为单行横向滚动，下方主题 section 竖向排列且不分页。未登录时 `useSpace(false)` 不读取个人数据；失败时显示重试而不是空状态。
 
 ### 7.8 错误类型
 

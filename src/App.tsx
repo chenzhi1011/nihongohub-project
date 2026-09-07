@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthDialog } from './components/AuthDialog';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
@@ -10,9 +10,11 @@ import { useHubApp } from './hooks/useHubApp';
 import { useCatalog } from './hooks/useCatalog';
 import { useResourceActions } from './hooks/useResourceActions';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
+import { useSpace } from './hooks/useSpace';
 import { CategoryPage } from './pages/CategoryPage';
 import { HomePage } from './pages/HomePage';
 import { SearchResults } from './pages/SearchResults';
+import { SpacePage } from './pages/SpacePage';
 
 function App() {
   const {
@@ -24,7 +26,9 @@ function App() {
   } = useSupabaseAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const catalog = useCatalog();
+  const space = useSpace(Boolean(user));
   const retryCatalog = catalog.retry;
+  const retrySpace = space.retry;
   const lastCatalogIdentity = useRef<string | null>();
 
   useEffect(() => {
@@ -40,7 +44,10 @@ function App() {
     }
   }, [authLoading, retryCatalog, user?.id]);
 
-  const resourceActionDependencies = useMemo(() => ({ refreshSpace: retryCatalog }), [retryCatalog]);
+  const refreshResources = useCallback(async () => {
+    await Promise.all([retryCatalog(), retrySpace()]);
+  }, [retryCatalog, retrySpace]);
+  const resourceActionDependencies = useMemo(() => ({ refreshSpace: refreshResources }), [refreshResources]);
   const resourceActions = useResourceActions(resourceActionDependencies);
 
   const userEmail = user?.email ?? null;
@@ -103,7 +110,7 @@ function App() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+        {activeCategory !== 'space' && <div className="mb-8">
           <div className="relative max-w-lg mx-auto">
             <Search
               className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
@@ -122,9 +129,24 @@ function App() {
               }`}
             />
           </div>
-        </div>
+        </div>}
 
-        {catalog.loading ? (
+        {activeCategory === 'space' ? (
+          <SpacePage
+            authenticated={Boolean(user)}
+            loading={space.loading}
+            error={space.error}
+            data={space.data}
+            darkMode={darkMode}
+            t={t}
+            onLoginRequired={() => setAuthDialogOpen(true)}
+            onRetry={() => void space.retry()}
+            resolveMarked={resourceActions.resolveMarked}
+            markPendingIds={resourceActions.markPendingIds}
+            onToggleMark={(resourceId, marked) => void resourceActions.toggleMark(resourceId, marked)}
+            onVisit={resourceActions.recordVisit}
+          />
+        ) : catalog.loading ? (
           <p role="status" className={darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}>{t('catalogLoading')}</p>
         ) : catalog.error ? (
           <div role="alert" className={`rounded-lg border p-5 text-center ${darkMode ? 'border-[#70453e] bg-[#3b2925] text-[#ffd2ca]' : 'border-[#dfb7ae] bg-[#fff0ed] text-[#7d3027]'}`}>
@@ -159,7 +181,7 @@ function App() {
           />
         )}
 
-        {activeCategory !== 'home' && !searchQuery && activeCategoryData && activeCategoryMetadata && (
+        {activeCategory !== 'home' && activeCategory !== 'space' && !searchQuery && activeCategoryData && activeCategoryMetadata && (
           <CategoryPage
             category={activeCategoryData}
             metadata={activeCategoryMetadata}
