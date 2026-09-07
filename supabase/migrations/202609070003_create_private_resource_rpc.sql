@@ -22,6 +22,8 @@ returns table (
   description text,
   url text,
   tags text[],
+  category public.resource_category,
+  sort_order integer,
   source text,
   match_type text
 )
@@ -50,9 +52,18 @@ begin
     resources.description,
     resources.url,
     resources.tags,
+    display_placement.category,
+    display_placement.sort_order,
     case when resources.owner_id is null then 'public' else 'private' end,
     case when resources.url = cleaned_url then 'exact_url' else 'same_normalized_url' end
   from public.resources
+  join lateral (
+    select placements.category, placements.sort_order
+    from public.resource_categories placements
+    where placements.resource_id = resources.id
+    order by placements.category, placements.sort_order
+    limit 1
+  ) display_placement on true
   where (resources.owner_id is null or resources.owner_id = current_user_id)
     and resources.id is distinct from p_exclude_resource_id
     and (resources.url = cleaned_url or resources.normalized_url = source_key)

@@ -503,7 +503,7 @@ export interface SimilarResourceMatch {
 }
 
 export type SavePrivateResourceResult =
-  | { status: 'saved'; resource: ResourceRecord }
+  | { status: 'saved'; resourceId: ResourceId }
   | { status: 'invalid_input' }
   | { status: 'exact_url_exists'; recommendations: SimilarResourceMatch[] }
   | { status: 'similar_review_required'; recommendations: SimilarResourceMatch[] }
@@ -519,6 +519,8 @@ export interface AppError extends Error {
 
 `ResourceRecord` 是面向页面的查询结果，不是 `resources` 表的逐列复制。API 会把 `resources` 与 `resource_categories` 联查后补上 `category` 和 `sortOrder`。因此同一个公共资源 ID 可以在不同主题结果中出现；它们共享同一个 Mark 状态和浏览历史。
 
+创建或更新成功只返回 `resourceId`，随后由 Hook 使 Space 查询缓存失效并重新读取。这里不为了返回整张卡片再增加一次数据库查询：Space 才是私人资源展示状态的真源，重新读取也能同时得到最终主题顺序和其他并发变化。
+
 ### 7.2 文件边界
 
 ```text
@@ -526,6 +528,7 @@ src/api/
 ├── supabaseClient.ts
 ├── authApi.ts
 ├── catalogApi.ts
+├── resourceCatalogApi.ts
 └── resourceApi.ts
 
 src/service/
@@ -539,6 +542,8 @@ src/observability/
 
 首版按领域合并 Mark、History 和私人资源 API，减少小文件之间的跳转；当单个文件超过约 300 行、出现两个以上独立变化原因，或多人并行开发频繁冲突时再拆分。`authApi.ts` 是认证访问 Supabase 的唯一入口，Hooks 不直接导入 Supabase client。选择这个粒度是为了保留分层边界，同时避免为尚未出现的团队规模提前拆分。
 
+迁移期间 `catalogApi.ts` 暂时保留旧静态页面所需的同步读取，`resourceCatalogApi.ts` 承载新的数据库目录 API。Review 5 页面和 Hooks 切换完成后删除旧静态资源访问以及 `userDataApi.ts` 的 `user_resources` 兼容路径，最终再将目录职责收敛回一个文件。这个临时并存只服务于小步回滚，不形成长期双写。
+
 ### 7.3 Catalog API
 
 ```ts
@@ -548,7 +553,7 @@ searchCatalog(query: string): Promise<ResourceRecord[]>
 
 `fetchCatalog` 调用 `get_catalog_snapshot` RPC。身份从当前 Supabase session 获取，不接受 `userId` 参数，避免调用方冒充其他用户。
 
-`searchCatalog` 的权限与目录读取完全一致：
+`searchCatalog` 的权限与目录读取完全一致。API 只搜索数据库已经授权返回的目录结果；登录用户的私人资源由 `spaceService` 合并后参与页面搜索：
 
 - 游客只能搜索每个主题可见的 6 条。
 - 登录用户可以搜索全部公共资源和自己的私人资源。

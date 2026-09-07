@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(24);
 
 select has_function('public', 'private_resource_limit', 'private total limit function exists');
 select has_function('public', 'similar_resource_limit', 'same-source limit function exists');
@@ -18,6 +18,14 @@ select has_function(
   'public', 'update_private_resource',
   array['bigint', 'resource_category', 'text', 'text', 'text', 'text[]', 'boolean'],
   'private resource update RPC exists'
+);
+
+select ok(
+  position(
+    'category resource_category'
+    in pg_get_function_result('public.find_similar_resources(text,bigint)'::regprocedure)
+  ) > 0,
+  'similar resource rows include a deterministic display category'
 );
 
 insert into auth.users (id, email)

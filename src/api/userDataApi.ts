@@ -1,5 +1,9 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Resource } from '../data/types';
 import { supabase } from './supabaseClient';
+
+// Review 4 兼容层：旧页面仍依赖尚未迁移的表名。Review 5 切换到 resourceApi 后删除。
+const legacySupabase = supabase as SupabaseClient | null;
 
 export type UserResourcesByCategoryId = Record<string, Resource[]>;
 
@@ -21,9 +25,9 @@ function mapDbRowToResource(row: UserResourceRow): Resource {
 }
 
 export async function fetchUserResourcesByCategoryId(userId: string): Promise<UserResourcesByCategoryId> {
-  if (!supabase) throw new Error('Supabase 未配置');
+  if (!legacySupabase) throw new Error('Supabase 未配置');
 
-  const { data, error } = await supabase
+  const { data, error } = await legacySupabase
     .from('user_resources')
     .select('category_id,name,description,url,tags')
     .eq('user_id', userId)
@@ -46,11 +50,11 @@ export async function insertUserResource(params: {
   resource: Resource;
   isPrivate?: boolean;
 }): Promise<void> {
-  if (!supabase) throw new Error('Supabase 未配置');
+  if (!legacySupabase) throw new Error('Supabase 未配置');
 
   const { userId, categoryId, resource, isPrivate = true } = params;
 
-  const { error } = await supabase.from('user_resources').insert({
+  const { error } = await legacySupabase.from('user_resources').insert({
     user_id: userId,
     category_id: categoryId,
     name: resource.name,
@@ -67,10 +71,10 @@ export async function getCheckinStatus(params: {
   userId: string;
   checkinDate: string; // YYYY-MM-DD
 }): Promise<boolean> {
-  if (!supabase) throw new Error('Supabase 未配置');
+  if (!legacySupabase) throw new Error('Supabase 未配置');
   const { userId, checkinDate } = params;
 
-  const { data, error } = await supabase
+  const { data, error } = await legacySupabase
     .from('checkins')
     .select('id')
     .eq('user_id', userId)
@@ -85,14 +89,14 @@ export async function checkInToday(params: {
   userId: string;
   checkinDate: string; // YYYY-MM-DD
 }): Promise<boolean> {
-  if (!supabase) throw new Error('Supabase 未配置');
+  if (!legacySupabase) throw new Error('Supabase 未配置');
   const { userId, checkinDate } = params;
 
   // 先查是否已存在，避免 unique 冲突报错给用户
   const already = await getCheckinStatus({ userId, checkinDate });
   if (already) return false;
 
-  const { error } = await supabase.from('checkins').insert({
+  const { error } = await legacySupabase.from('checkins').insert({
     user_id: userId,
     checkin_date: checkinDate,
   });

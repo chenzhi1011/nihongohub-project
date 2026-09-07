@@ -66,26 +66,8 @@ export function useSupabaseAuth(): AuthState {
   }, [redirectTo]);
 
   const signInWithWeChat = useCallback(async () => {
-    if (!supabase) return;
-    setError(null);
-
-    // Supabase WeChat provider 可能是 `weixin` 或 `wechat`，这里做一次兜底
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'weixin',
-        options: { redirectTo },
-      });
-    } catch {
-      try {
-        await supabase.auth.signInWithOAuth({
-          provider: 'wechat',
-          options: { redirectTo },
-        });
-      } catch (e2) {
-        setError(e2 instanceof Error ? e2.message : '微信登录失败');
-      }
-    }
-  }, [redirectTo]);
+    setError('微信登录将在后续版本开放，请先使用 Google 登录。');
+  }, []);
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
