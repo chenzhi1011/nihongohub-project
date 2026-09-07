@@ -1,8 +1,8 @@
 import { Globe, LogIn, LogOut, Menu, X, Moon, Sun, UserRound } from 'lucide-react';
-import type { Category, Language } from '../data/types';
+import type { CategoryMetadata, Language } from '../data/types';
 
 type Props = {
-  categories: Category[];
+  categories: CategoryMetadata[];
   activeCategory: string;
   darkMode: boolean;
   language: Language;

@@ -526,14 +526,13 @@ export interface AppError extends Error {
 ```text
 src/api/
 ├── supabaseClient.ts
+├── apiError.ts
 ├── authApi.ts
-├── catalogApi.ts
 ├── resourceCatalogApi.ts
 └── resourceApi.ts
 
 src/service/
 ├── catalogService.ts
-├── resourceService.ts
 └── spaceService.ts
 
 src/observability/
@@ -542,7 +541,7 @@ src/observability/
 
 首版按领域合并 Mark、History 和私人资源 API，减少小文件之间的跳转；当单个文件超过约 300 行、出现两个以上独立变化原因，或多人并行开发频繁冲突时再拆分。`authApi.ts` 是认证访问 Supabase 的唯一入口，Hooks 不直接导入 Supabase client。选择这个粒度是为了保留分层边界，同时避免为尚未出现的团队规模提前拆分。
 
-迁移期间 `catalogApi.ts` 暂时保留旧静态页面所需的同步读取，`resourceCatalogApi.ts` 承载新的数据库目录 API。Review 5 已删除 `userDataApi.ts` 的 `user_resources` 兼容路径；Review 6 页面切换完成后再删除静态资源读取，最终将目录职责收敛回一个文件。这个临时并存只服务于小步回滚，不形成长期双写。
+Review 5 已删除 `userDataApi.ts` 的旧 `user_resources` 兼容路径。Review 6 已删除 `catalogApi.ts`、旧静态搜索函数和浏览器 bundle 中的静态资源副本；`src/data/categories.ts` 只保留主题名称键与图标等视觉 metadata。公共资源的唯一内容真源是数据库，目录查询统一由 `resourceCatalogApi.ts` 承担。
 
 首版请求生命周期使用 React 原生 Hook 管理 `loading`、`error`、`retry` 和过期响应抑制，不新增 TanStack Query 或 SWR。当前只有目录与 Space 两个读取入口，原生实现的依赖和概念最少；接受的代价是两个 Hook 可能分别读取目录。未来出现三个以上页面共享同一数据、明显重复请求、后台自动刷新或复杂缓存失效时，优先迁移到 TanStack Query；SWR 更轻，但本项目后续的多类 mutation 与精确缓存失效更适合 TanStack Query。
 
@@ -550,7 +549,7 @@ src/observability/
 
 ```ts
 fetchCatalog(): Promise<CategoryCatalog[]>
-searchCatalog(query: string): Promise<ResourceRecord[]>
+searchVisibleCatalog(query: string, catalog: CategoryCatalog[]): ResourceRecord[]
 ```
 
 `fetchCatalog` 调用 `get_catalog_snapshot` RPC。身份从当前 Supabase session 获取，不接受 `userId` 参数，避免调用方冒充其他用户。
@@ -725,7 +724,7 @@ supabase/
 页面打开
 → useCatalog()
 → catalogService
-→ catalogApi.fetchCatalog()
+→ resourceCatalogApi.fetchCatalog()
 → get_catalog_snapshot RPC
 → 游客每类 6 条 / 登录用户完整数据
 ```

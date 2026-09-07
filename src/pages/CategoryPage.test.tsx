@@ -8,7 +8,6 @@ const metadata = {
   id: 'listening',
   nameKey: 'listening',
   icon: Headphones,
-  resources: [],
 };
 
 const catalog: CategoryCatalog = {

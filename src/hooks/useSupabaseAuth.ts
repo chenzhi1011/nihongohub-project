@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '../api/supabaseClient';
+import {
+  getCurrentUser,
+  signInWithGoogle as startGoogleLogin,
+  signOut as endSession,
+  subscribeToAuthState,
+} from '../api/authApi';
 
 type AuthState = {
   user: User | null;
@@ -17,24 +22,14 @@ export function useSupabaseAuth(): AuthState {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let unsub: { data: { subscription: { unsubscribe: () => void } } } | null = null;
+    let unsubscribe: (() => void) | null = null;
 
     async function init() {
       try {
-        if (!supabase) {
-          setError('缺少 Supabase 配置（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）。');
-          setUser(null);
-          return;
-        }
-
-        const { data } = await supabase.auth.getSession();
-        setUser(data.session?.user ?? null);
-
-        unsub = supabase.auth.onAuthStateChange((_event, session) => {
-          setUser(session?.user ?? null);
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Auth 初始化失败');
+        setUser(await getCurrentUser());
+        unsubscribe = subscribeToAuthState(setUser);
+      } catch {
+        setError('登录状态加载失败，请刷新页面重试。');
       } finally {
         setLoading(false);
       }
@@ -44,7 +39,7 @@ export function useSupabaseAuth(): AuthState {
 
     return () => {
       try {
-        if (unsub?.data.subscription) unsub.data.subscription.unsubscribe();
+        unsubscribe?.();
       } catch {
         // ignore
       }
@@ -57,12 +52,12 @@ export function useSupabaseAuth(): AuthState {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!supabase) return;
     setError(null);
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo },
-    });
+    try {
+      await startGoogleLogin(redirectTo);
+    } catch {
+      setError('Google 登录暂时失败，请重试。');
+    }
   }, [redirectTo]);
 
   const signInWithWeChat = useCallback(async () => {
@@ -70,9 +65,12 @@ export function useSupabaseAuth(): AuthState {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!supabase) return;
     setError(null);
-    await supabase.auth.signOut();
+    try {
+      await endSession();
+    } catch {
+      setError('退出失败，请重试。');
+    }
   }, []);
 
   return { user, loading, error, signInWithGoogle, signInWithWeChat, signOut };

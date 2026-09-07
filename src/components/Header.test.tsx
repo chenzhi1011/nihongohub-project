@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Header } from './Header';
 
 const baseProps = {
-  categories: [{ id: 'basic', nameKey: 'basicLearning', icon: BookOpen, resources: [] }],
+  categories: [{ id: 'basic', nameKey: 'basicLearning', icon: BookOpen }],
   activeCategory: 'home',
   darkMode: false,
   language: 'zh' as const,

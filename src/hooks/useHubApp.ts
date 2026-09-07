@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import * as catalogDataApi from '../api/catalogApi';
 import { searchVisibleCatalog } from '../api/resourceCatalogApi';
+import { categories, todaysPhrases, translations } from '../data';
 import {
   makeTranslator,
   pickRandomPhrase,
@@ -14,13 +14,7 @@ export function useHubApp(catalog: CategoryCatalog[] = []) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const baseCategoryList = useMemo(() => catalogDataApi.fetchCategories(), []);
-  const translationMap = useMemo(() => catalogDataApi.fetchTranslations(), []);
-
-  const categoryList = useMemo(() => baseCategoryList.map((category) => ({
-    ...category,
-    resources: catalog.find((section) => section.category === category.id)?.resources ?? [],
-  })), [baseCategoryList, catalog]);
+  const categoryList = categories;
   const categoryCounts = useMemo(() => Object.fromEntries(
     catalog.map((section) => [section.category, section.totalCount]),
   ), [catalog]);
@@ -33,14 +27,14 @@ export function useHubApp(catalog: CategoryCatalog[] = []) {
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState<Language>('jp');
   const [todaysPhrase] = useState<TodaysPhrase>(() =>
-    pickRandomPhrase(catalogDataApi.fetchTodaysPhrasePool()),
+    pickRandomPhrase(todaysPhrases),
   );
 
   useEffect(() => {
     setActiveCategory(resolveActiveCategoryId(location.pathname, categoryList));
   }, [location.pathname, categoryList]);
 
-  const t = useMemo(() => makeTranslator(translationMap, language), [translationMap, language]);
+  const t = useMemo(() => makeTranslator(translations, language), [language]);
 
   const filteredResources = useMemo(
     () => searchVisibleCatalog(searchQuery, catalog).map((resource) => ({

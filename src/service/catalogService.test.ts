@@ -1,22 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { Category, TranslationMap } from '../data/types';
-import { makeTranslator, resolveActiveCategoryId, searchResources } from './catalogService';
+import type { CategoryMetadata, TranslationMap } from '../data/types';
+import { makeTranslator, resolveActiveCategoryId } from './catalogService';
 
 const Icon = () => null;
 
-const categories: Category[] = [
+const categories: CategoryMetadata[] = [
   {
     id: 'listening',
     nameKey: 'categoryListening',
     icon: Icon,
-    resources: [
-      {
-        name: 'NHK Easy News',
-        description: 'Japanese news with audio',
-        url: 'https://example.com/news',
-        tags: ['Beginner', 'Listening'],
-      },
-    ],
   },
 ];
 
@@ -42,23 +34,4 @@ describe('makeTranslator', () => {
     expect(translate('categoryListening')).toBe('听力');
     expect(translate('missing')).toBe('missing');
   });
-});
-
-describe('searchResources', () => {
-  it('returns no results for a blank query', () => {
-    expect(searchResources('   ', categories, (key) => key)).toEqual([]);
-  });
-
-  it.each(['nhk', 'AUDIO', 'listening'])(
-    'matches %s case-insensitively across resource fields',
-    (query) => {
-      const results = searchResources(query, categories, () => '听力');
-
-      expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({
-        name: 'NHK Easy News',
-        categoryName: '听力',
-      });
-    },
-  );
 });

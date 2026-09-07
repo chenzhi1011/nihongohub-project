@@ -217,17 +217,17 @@ Expected: all focused tests PASS.
 - Modify: `src/service/catalogService.test.ts`
 - Modify: `docs/2026-09-01-resource-space-database-api-design.md`
 
-- [ ] **Step 1: Prove no runtime caller needs static resources**
+- [x] **Step 1: Prove no runtime caller needs static resources**
 
 Run: `rg "catalogApi|category\.resources|fetchCategories" src`
 
 Expected: only obsolete imports/tests remain; no page or hook depends on the old resource arrays.
 
-- [ ] **Step 2: Remove the obsolete API and narrow catalog service**
+- [x] **Step 2: Remove the obsolete API and narrow catalog service**
 
-Keep category visual metadata and translations in `src/data/`. Remove synchronous resource retrieval/search helpers that consume static resources. Update the design document to state that Review 6 completed the static catalog cutover; do not delete the data arrays in this batch if HomePage still needs category metadata.
+Keep category visual metadata and translations in `src/data/`. Remove synchronous resource retrieval/search helpers and the static resource arrays after confirming the database seed contains the same public catalog. Update the design document to state that Review 6 completed the static catalog cutover; HomePage receives database counts separately from metadata.
 
-- [ ] **Step 3: Run complete verification**
+- [x] **Step 3: Run complete verification**
 
 Run sequentially:
 
@@ -241,7 +241,7 @@ git diff --check
 
 Expected: all commands exit 0. Run lint and build sequentially because Vite creates a short-lived timestamp file that ESLint can otherwise race with.
 
-- [ ] **Step 4: Commit the review batch**
+- [x] **Step 4: Commit the review batch**
 
 ```bash
 git add docs src

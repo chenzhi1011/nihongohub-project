@@ -11,7 +11,6 @@ describe('HomePage catalog counts', () => {
           id: 'basic',
           nameKey: 'basicLearning',
           icon: BookOpen,
-          resources: [{ name: 'stale static item', description: '', url: 'https://example.com', tags: [] }],
         }]}
         categoryCounts={{ basic: 14 }}
         darkMode={false}

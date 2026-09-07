@@ -1,7 +1,7 @@
-import type { Category, Language, TodaysPhrase } from '../data/types';
+import type { CategoryMetadata, Language, TodaysPhrase } from '../data/types';
 
 type Props = {
-  categories: Category[];
+  categories: CategoryMetadata[];
   categoryCounts: Readonly<Record<string, number>>;
   darkMode: boolean;
   language: Language;

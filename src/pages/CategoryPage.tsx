@@ -1,11 +1,11 @@
-import type { Category } from '../data/types';
+import type { CategoryMetadata } from '../data/types';
 import type { CategoryCatalog } from '../types/resource';
 import { ResourceCard } from '../components/ResourceCard';
 import { LockedResourcesCard } from '../components/LockedResourcesCard';
 
 type Props = {
   category: CategoryCatalog;
-  metadata: Category;
+  metadata: CategoryMetadata;
   darkMode: boolean;
   t: (key: string) => string;
   onLoginRequired: () => void;
