@@ -30,7 +30,7 @@
 - Modify: `src/components/ResourceCard.test.tsx`
 - Modify: `src/components/ResourceCard.tsx`
 
-- [ ] **Step 1: Write failing card interaction tests**
+- [x] **Step 1: Write failing card interaction tests**
 
 Add separate tests that establish:
 
@@ -42,13 +42,13 @@ it('emits the selected private resource for edit and delete');
 
 Pass optional `onEditPrivate` and `onDeletePrivate` callbacks. Query the overflow button by translated accessible name, open it, then click the translated edit/delete item. Assert public cards never expose the overflow menu.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run: `npm test -- src/components/ResourceCard.test.tsx`
 
 Expected: FAIL because `ResourceCard` does not accept private ownership callbacks or render the menu.
 
-- [ ] **Step 3: Implement the minimal private-only menu**
+- [x] **Step 3: Implement the minimal private-only menu**
 
 Add optional callback props:
 
@@ -59,13 +59,13 @@ onDeletePrivate?: (resource: ResourceRecord) => void;
 
 For `resource.source === 'private'`, render a button using `t('resourceActions')`; toggle a small menu with `t('editResource')` and `t('deleteResource')`. Clicking an item closes the menu and emits the current resource. Keep the existing public Mark branch unchanged.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `npm test -- src/components/ResourceCard.test.tsx`
 
 Expected: all ResourceCard tests PASS without warnings.
 
-- [ ] **Step 5: Stop for Review 9A**
+- [x] **Step 5: Stop for Review 9A**
 
 Explain why the card emits an intent instead of opening dialogs or calling APIs itself.
 
@@ -77,7 +77,7 @@ Explain why the card emits an intent instead of opening dialogs or calling APIs 
 - Create: `src/components/DeleteResourceDialog.test.tsx`
 - Create: `src/components/DeleteResourceDialog.tsx`
 
-- [ ] **Step 1: Write failing edit-mode tests**
+- [x] **Step 1: Write failing edit-mode tests**
 
 Extend dialog props with an optional edit resource and make the title/submit label mode-aware. Add tests proving:
 
@@ -90,13 +90,13 @@ it('restores the selected resource when edit mode changes');
 
 The injected submit callback keeps the same `(input, reviewed)` signature; `SpacePage` chooses create versus update. This prevents the form from knowing resource API details.
 
-- [ ] **Step 2: Run edit tests and verify RED**
+- [x] **Step 2: Run edit tests and verify RED**
 
 Run: `npm test -- src/components/PrivateResourceDialog.test.tsx`
 
 Expected: new edit tests FAIL because the dialog only initializes an empty create draft.
 
-- [ ] **Step 3: Implement mode-aware initial state**
+- [x] **Step 3: Implement mode-aware initial state**
 
 Add:
 
@@ -107,13 +107,13 @@ mode?: 'create' | 'edit';
 
 Build the initial draft from `initialResource`; join tags with `, `. When the active dialog target changes, reset draft/result/errors to that target. Continue to call only the injected `onCreate(input, reviewed)` callback; rename the prop to `onSubmit` to reflect both modes and update existing call sites/tests.
 
-- [ ] **Step 4: Run edit and create regression tests**
+- [x] **Step 4: Run edit and create regression tests**
 
 Run: `npm test -- src/components/PrivateResourceDialog.test.tsx src/components/AddResourceButton.test.tsx`
 
 Expected: create and edit behavior both PASS.
 
-- [ ] **Step 5: Write failing delete dialog tests**
+- [x] **Step 5: Write failing delete dialog tests**
 
 Create tests proving:
 
@@ -124,23 +124,23 @@ it('keeps the dialog open with a safe retry message after failure');
 it('prevents duplicate confirmation while deletion is pending');
 ```
 
-- [ ] **Step 6: Run delete tests and verify RED**
+- [x] **Step 6: Run delete tests and verify RED**
 
 Run: `npm test -- src/components/DeleteResourceDialog.test.tsx`
 
 Expected: FAIL because the component does not exist.
 
-- [ ] **Step 7: Implement focused delete confirmation**
+- [x] **Step 7: Implement focused delete confirmation**
 
 The component accepts `resource`, `open`, `onClose`, and `onDelete(resourceId)`. It owns only `pending` and `failed`; it never imports API modules. Cancel closes without mutation. Confirm disables destructive controls, awaits deletion, closes on success, and keeps the resource visible with `t('resourceDeleteFailed')` on failure.
 
-- [ ] **Step 8: Run Task 2 tests and verify GREEN**
+- [x] **Step 8: Run Task 2 tests and verify GREEN**
 
 Run: `npm test -- src/components/PrivateResourceDialog.test.tsx src/components/DeleteResourceDialog.test.tsx`
 
 Expected: all focused tests PASS without raw error text or React warnings.
 
-- [ ] **Step 9: Stop for Review 9B**
+- [x] **Step 9: Stop for Review 9B**
 
 Explain form reuse, why delete is separate, and why expected business statuses are not error logs.
 
@@ -154,7 +154,7 @@ Explain form reuse, why delete is separate, and why expected business statuses a
 - Modify: `src/data/translations.ts`
 - Modify: `docs/2026-09-01-resource-space-database-api-design.md`
 
-- [ ] **Step 1: Write failing Space composition tests**
+- [x] **Step 1: Write failing Space composition tests**
 
 Add tests proving that a private resource menu opens a prefilled edit form, edit calls:
 
@@ -170,17 +170,17 @@ onDeleteResource(resource.id)
 
 Also assert public resources do not expose private actions.
 
-- [ ] **Step 2: Write failing App injection test**
+- [x] **Step 2: Write failing App injection test**
 
 Extend the existing mocked `useResourceActions` return with `updateResource` and `deleteResource`. Navigate to an authenticated Space snapshot and verify the dialogs can be opened from a private card. The Hook unit tests already prove refresh and structured logging; do not duplicate those internals in App tests.
 
-- [ ] **Step 3: Run composition tests and verify RED**
+- [x] **Step 3: Run composition tests and verify RED**
 
 Run: `npm test -- src/pages/SpacePage.test.tsx src/App.test.tsx`
 
 Expected: FAIL because Space does not yet own edit/delete targets or accept callbacks.
 
-- [ ] **Step 4: Wire Space and App without API imports**
+- [x] **Step 4: Wire Space and App without API imports**
 
 Add required Space props:
 
@@ -191,17 +191,17 @@ onDeleteResource: (resourceId: number) => Promise<void>;
 
 `SpacePage` stores `editingResource` and `deletingResource`, supplies resource callbacks to private cards, and selects the correct submit handler. `App` passes `resourceActions.updateResource` and `resourceActions.deleteResource`.
 
-- [ ] **Step 5: Add translations and update design status**
+- [x] **Step 5: Add translations and update design status**
 
 Add Chinese/Japanese strings for the overflow accessible name, edit/delete actions, edit title, delete question, cancel, confirm, pending, and safe failure. Update the dated database/API design status without claiming production deployment.
 
-- [ ] **Step 6: Run focused GREEN verification**
+- [x] **Step 6: Run focused GREEN verification**
 
 Run: `npm test -- src/components/ResourceCard.test.tsx src/components/PrivateResourceDialog.test.tsx src/components/DeleteResourceDialog.test.tsx src/pages/SpacePage.test.tsx src/App.test.tsx`
 
 Expected: all focused tests PASS.
 
-- [ ] **Step 7: Run complete verification**
+- [x] **Step 7: Run complete verification**
 
 Run sequentially:
 
@@ -216,7 +216,7 @@ git diff --check
 
 Expected: all commands exit 0, lint has zero warnings, and production audit reports zero vulnerabilities.
 
-- [ ] **Step 8: Commit and stop for Review 9C**
+- [x] **Step 8: Commit and stop for Review 9C**
 
 ```bash
 git add docs src

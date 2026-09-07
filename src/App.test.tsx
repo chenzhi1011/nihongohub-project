@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   spaceEnabled: [] as boolean[],
   resourceDependencies: null as null | { refreshSpace: () => Promise<unknown> },
   createResource: vi.fn(),
+  updateResource: vi.fn(),
+  deleteResource: vi.fn(),
 }));
 
 vi.mock('./hooks/useCatalog', () => ({
@@ -57,6 +59,8 @@ vi.mock('./hooks/useResourceActions', () => ({
     toggleMark: vi.fn(),
     recordVisit: vi.fn(),
     createResource: mocks.createResource,
+    updateResource: mocks.updateResource,
+    deleteResource: mocks.deleteResource,
   });
   },
 }));
@@ -78,6 +82,8 @@ describe('App catalog states', () => {
     mocks.spaceEnabled.length = 0;
     mocks.resourceDependencies = null;
     mocks.createResource.mockReset();
+    mocks.updateResource.mockReset();
+    mocks.deleteResource.mockReset();
   });
 
   it('shows catalog loading before rendering catalog pages', () => {
@@ -147,5 +153,26 @@ describe('App catalog states', () => {
     await userEvent.click(screen.getByRole('button', { name: /リソースを追加|添加资源/ }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('connects private edit and delete dialogs from Space to the action hook', async () => {
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    mocks.catalog.loading = false;
+    mocks.space.data = {
+      recentHistory: [],
+      sections: [{
+        category: 'tools',
+        resources: [{
+          id: 77, category: 'tools', name: 'My dictionary', description: 'Private resource',
+          url: 'https://example.com/dictionary', tags: [], source: 'private', marked: false, sortOrder: 0,
+        }],
+      }],
+    };
+    render(<MemoryRouter initialEntries={['/space']}><App /></MemoryRouter>);
+
+    await userEvent.click(screen.getByRole('button', { name: /リソース操作|资源操作/ }));
+    await userEvent.click(screen.getByRole('button', { name: /編集|编辑/ }));
+
+    expect(screen.getByRole('dialog', { name: /リソースを編集|编辑资源/ })).toBeInTheDocument();
   });
 });

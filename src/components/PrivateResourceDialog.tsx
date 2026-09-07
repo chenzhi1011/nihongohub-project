@@ -1,33 +1,54 @@
 import { X } from 'lucide-react';
-import { useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
 import { categories } from '../data/categories';
 import { buildPrivateResourceInput, type PrivateResourceDraft } from '../service/privateResourceService';
-import type { PrivateResourceInput, SavePrivateResourceResult, SimilarResourceMatch } from '../types/resource';
+import type { PrivateResourceInput, ResourceRecord, SavePrivateResourceResult, SimilarResourceMatch } from '../types/resource';
 
 type Props = {
   open: boolean;
   darkMode: boolean;
   t: (key: string) => string;
   onClose: () => void;
-  onCreate: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
+  onSubmit: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
   onMarkRecommendation: (resourceId: number, currentMarked: boolean) => void | Promise<void>;
+  mode?: 'create' | 'edit';
+  initialResource?: ResourceRecord | null;
 };
 
 const emptyDraft: PrivateResourceDraft = { category: '', name: '', description: '', url: '', tags: '' };
 type FieldErrors = Partial<Record<keyof PrivateResourceDraft, string>>;
 
-export function PrivateResourceDialog({ open, darkMode, t, onClose, onCreate, onMarkRecommendation }: Props) {
-  const [draft, setDraft] = useState<PrivateResourceDraft>(emptyDraft);
+function draftFromResource(resource?: ResourceRecord | null): PrivateResourceDraft {
+  if (!resource) return emptyDraft;
+  return {
+    category: resource.category,
+    name: resource.name,
+    description: resource.description,
+    url: resource.url,
+    tags: resource.tags.join(', '),
+  };
+}
+
+export function PrivateResourceDialog({ open, darkMode, t, onClose, onSubmit, onMarkRecommendation, mode = 'create', initialResource = null }: Props) {
+  const [draft, setDraft] = useState<PrivateResourceDraft>(() => draftFromResource(initialResource));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [result, setResult] = useState<SavePrivateResourceResult | null>(null);
   const [pending, setPending] = useState(false);
   const [requestFailed, setRequestFailed] = useState(false);
   const [validatedInput, setValidatedInput] = useState<PrivateResourceInput | null>(null);
 
+  useEffect(() => {
+    setDraft(draftFromResource(initialResource));
+    setErrors({});
+    setResult(null);
+    setRequestFailed(false);
+    setValidatedInput(null);
+  }, [initialResource, mode, open]);
+
   if (!open) return null;
 
   const resetAndClose = () => {
-    setDraft(emptyDraft);
+    setDraft(draftFromResource(initialResource));
     setErrors({});
     setResult(null);
     setRequestFailed(false);
@@ -35,11 +56,11 @@ export function PrivateResourceDialog({ open, darkMode, t, onClose, onCreate, on
     onClose();
   };
 
-  const runCreate = async (input: PrivateResourceInput, reviewed: boolean) => {
+  const runSubmit = async (input: PrivateResourceInput, reviewed: boolean) => {
     setPending(true);
     setRequestFailed(false);
     try {
-      const nextResult = await onCreate(input, reviewed);
+      const nextResult = await onSubmit(input, reviewed);
       if (nextResult.status === 'saved') {
         resetAndClose();
         return;
@@ -62,7 +83,7 @@ export function PrivateResourceDialog({ open, darkMode, t, onClose, onCreate, on
     setErrors({});
     setResult(null);
     setValidatedInput(built.input);
-    void runCreate(built.input, false);
+    void runSubmit(built.input, false);
   };
 
   const update = (field: keyof PrivateResourceDraft, value: string) => {
@@ -81,7 +102,7 @@ export function PrivateResourceDialog({ open, darkMode, t, onClose, onCreate, on
       <button type="button" className="absolute inset-0 bg-black/40" aria-label={t('close')} onClick={resetAndClose} />
       <div role="dialog" aria-modal="true" aria-labelledby="private-resource-title" className={`relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border p-5 shadow-xl ${darkMode ? 'border-[#4a3f33] bg-[#2a241d] text-[#f5ead8]' : 'border-[#d8c8ae] bg-[#fff8ec] text-[#2f2218]'}`}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="private-resource-title" className="text-xl font-bold">{t('addResource')}</h2>
+          <h2 id="private-resource-title" className="text-xl font-bold">{t(mode === 'edit' ? 'editResourceTitle' : 'addResource')}</h2>
           <button type="button" onClick={resetAndClose} aria-label={t('close')} className="rounded p-2"><X className="h-5 w-5" /></button>
         </div>
 
@@ -104,9 +125,9 @@ export function PrivateResourceDialog({ open, darkMode, t, onClose, onCreate, on
 
           <div className="flex justify-end gap-2">
             {result?.status === 'similar_review_required' && validatedInput && (
-              <button type="button" disabled={pending} onClick={() => void runCreate(validatedInput, true)} className="rounded-md bg-[#b3572a] px-4 py-2 text-white disabled:opacity-50">{t('continueSave')}</button>
+              <button type="button" disabled={pending} onClick={() => void runSubmit(validatedInput, true)} className="rounded-md bg-[#b3572a] px-4 py-2 text-white disabled:opacity-50">{t('continueSave')}</button>
             )}
-            <button type="submit" disabled={pending} className="rounded-md bg-[#b3572a] px-4 py-2 text-white disabled:opacity-50">{t('saveResource')}</button>
+            <button type="submit" disabled={pending} className="rounded-md bg-[#b3572a] px-4 py-2 text-white disabled:opacity-50">{t(mode === 'edit' ? 'updateResource' : 'saveResource')}</button>
           </div>
         </form>
       </div>

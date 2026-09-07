@@ -22,6 +22,9 @@ const t = (key: string) => ({
   visitResource: '访问资源',
   markResource: 'Mark 资源',
   unmarkResource: '取消 Mark',
+  resourceActions: '资源操作',
+  editResource: '编辑',
+  deleteResource: '删除',
 }[key] ?? key);
 
 const renderCard = (overrides: Partial<React.ComponentProps<typeof ResourceCard>> = {}) => {
@@ -68,10 +71,43 @@ describe('ResourceCard', () => {
     expect(onToggleMark).toHaveBeenCalledWith(41, true);
   });
 
-  it('never shows a star for a private resource', () => {
-    renderCard({ resource: { ...publicResource, source: 'private' } });
+  it('keeps the Mark control and hides ownership actions for a public resource', () => {
+    renderCard();
+
+    expect(screen.getByRole('button', { name: 'Mark 资源' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '资源操作' })).not.toBeInTheDocument();
+  });
+
+  it('shows a private overflow menu instead of Mark', async () => {
+    renderCard({
+      resource: { ...publicResource, source: 'private' },
+      onEditPrivate: vi.fn(),
+      onDeletePrivate: vi.fn(),
+    });
 
     expect(screen.queryByRole('button', { name: /Mark/ })).not.toBeInTheDocument();
+    const menuButton = screen.getByRole('button', { name: '资源操作' });
+    expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument();
+
+    await userEvent.click(menuButton);
+
+    expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
+  });
+
+  it('emits the selected private resource for edit and delete', async () => {
+    const privateResource = { ...publicResource, source: 'private' as const };
+    const onEditPrivate = vi.fn();
+    const onDeletePrivate = vi.fn();
+    renderCard({ resource: privateResource, onEditPrivate, onDeletePrivate });
+
+    await userEvent.click(screen.getByRole('button', { name: '资源操作' }));
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    expect(onEditPrivate).toHaveBeenCalledWith(privateResource);
+
+    await userEvent.click(screen.getByRole('button', { name: '资源操作' }));
+    await userEvent.click(screen.getByRole('button', { name: '删除' }));
+    expect(onDeletePrivate).toHaveBeenCalledWith(privateResource);
   });
 
   it('asks for login when a guest attempts to Mark', async () => {

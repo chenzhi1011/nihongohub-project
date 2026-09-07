@@ -50,6 +50,17 @@ export const translations: TranslationMap = {
   similarResourceLimitReached: { zh: '来自同一网站的私人资源已达到上限。', jp: '同じサイトの非公開リソース数が上限に達しました。' },
   resourceSaveFailed: { zh: '保存失败，请重试。', jp: '保存できませんでした。もう一度お試しください。' },
   resourceInputInvalid: { zh: '提交内容不符合要求，请检查后重试。', jp: '入力内容を確認して、もう一度お試しください。' },
+  resourceActions: { zh: '资源操作', jp: 'リソース操作' },
+  editResource: { zh: '编辑', jp: '編集' },
+  deleteResource: { zh: '删除', jp: '削除' },
+  editResourceTitle: { zh: '编辑资源', jp: 'リソースを編集' },
+  updateResource: { zh: '更新', jp: '更新' },
+  deleteResourceTitle: { zh: '删除资源', jp: 'リソースを削除' },
+  deleteResourceQuestion: { zh: '确定要永久删除这个资源吗？', jp: 'このリソースを完全に削除しますか？' },
+  cancel: { zh: '取消', jp: 'キャンセル' },
+  confirmDeleteResource: { zh: '确认删除', jp: '削除する' },
+  deletingResource: { zh: '正在删除…', jp: '削除しています…' },
+  resourceDeleteFailed: { zh: '删除失败，请重试。', jp: '削除できませんでした。もう一度お試しください。' },
 
   footerText: {
     zh: '© 2025 by xhs救活 日语学习导航。为日语学习者提供的综合资源。',

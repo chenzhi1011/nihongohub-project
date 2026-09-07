@@ -20,6 +20,15 @@ const t = (key: string) => ({
   resourceTags: '标签',
   saveResource: '保存',
   close: '关闭',
+  resourceActions: '资源操作',
+  editResource: '编辑',
+  deleteResource: '删除',
+  editResourceTitle: '编辑资源',
+  updateResource: '更新',
+  deleteResourceTitle: '删除资源',
+  deleteResourceQuestion: '确定要永久删除这个资源吗？',
+  cancel: '取消',
+  confirmDeleteResource: '确认删除',
 }[key] ?? key);
 
 const emptySnapshot: SpaceSnapshot = { recentHistory: [], sections: [] };
@@ -58,6 +67,8 @@ const renderSpace = (overrides: Partial<React.ComponentProps<typeof SpacePage>> 
     onToggleMark: vi.fn(),
     onVisit: vi.fn(),
     onCreateResource: vi.fn().mockResolvedValue({ status: 'saved', resourceId: 24 }),
+    onUpdateResource: vi.fn().mockResolvedValue({ status: 'saved', resourceId: 22 }),
+    onDeleteResource: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   render(<SpacePage {...props} />);
@@ -137,5 +148,42 @@ describe('SpacePage states', () => {
     expect(screen.queryByRole('heading', { name: 'Marked public' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My private resource' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Mark/ })).not.toBeInTheDocument();
+  });
+
+  it('opens a prefilled edit form and submits the selected private resource', async () => {
+    const props = renderSpace({
+      data: { recentHistory: [], sections: [{ category: 'reading', resources: [privateResource] }] },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: '资源操作' }));
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+
+    expect(screen.getByRole('dialog', { name: '编辑资源' })).toBeInTheDocument();
+    expect(screen.getByLabelText('名称')).toHaveValue('My private resource');
+    await userEvent.click(screen.getByRole('button', { name: '更新' }));
+    expect(props.onUpdateResource).toHaveBeenCalledWith(22, expect.objectContaining({
+      name: 'My private resource',
+      category: 'reading',
+    }), false);
+  });
+
+  it('requires confirmation before deleting the selected private resource', async () => {
+    const props = renderSpace({
+      data: { recentHistory: [], sections: [{ category: 'reading', resources: [privateResource] }] },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: '资源操作' }));
+    await userEvent.click(screen.getByRole('button', { name: '删除' }));
+
+    expect(screen.getByRole('dialog', { name: '删除资源' })).toHaveTextContent('My private resource');
+    expect(props.onDeleteResource).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: '确认删除' }));
+    expect(props.onDeleteResource).toHaveBeenCalledWith(22);
+  });
+
+  it('does not expose private actions on a public resource', () => {
+    renderSpace({ data: { recentHistory: [], sections: [{ category: 'reading', resources: [publicResource] }] } });
+
+    expect(screen.queryByRole('button', { name: '资源操作' })).not.toBeInTheDocument();
   });
 });

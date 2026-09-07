@@ -2,7 +2,7 @@
 
 - 日期：2026-09-01
 - 最后修订：2026-09-07
-- 状态：设计已确认；schema、RLS、RPC、授权目录、个人 Space 页面与私人资源新增表单已在隔离 worktree 实现并通过本地测试，生产环境连接尚未执行
+- 状态：设计已确认；schema、RLS、RPC、授权目录、个人 Space 页面与私人资源新增/编辑/删除界面已在隔离 worktree 实现并通过本地测试，生产环境连接尚未执行
 - 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 

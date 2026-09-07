@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import type { PrivateResourceInput, SavePrivateResourceResult, SpaceSnapshot } from '../types/resource';
+import type { PrivateResourceInput, ResourceRecord, SavePrivateResourceResult, SpaceSnapshot } from '../types/resource';
 import { categories } from '../data/categories';
 import { AddResourceButton } from '../components/AddResourceButton';
+import { DeleteResourceDialog } from '../components/DeleteResourceDialog';
 import { HistoryRail } from '../components/HistoryRail';
 import { PrivateResourceDialog } from '../components/PrivateResourceDialog';
 import { ResourceCard } from '../components/ResourceCard';
@@ -20,6 +21,8 @@ type Props = {
   onToggleMark: (resourceId: number, marked: boolean) => void;
   onVisit: (resourceId: number) => void;
   onCreateResource: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
+  onUpdateResource: (resourceId: number, input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
+  onDeleteResource: (resourceId: number) => Promise<void>;
 };
 
 export function SpacePage({
@@ -36,8 +39,12 @@ export function SpacePage({
   onToggleMark,
   onVisit,
   onCreateResource,
+  onUpdateResource,
+  onDeleteResource,
 }: Props) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<ResourceRecord | null>(null);
+  const [deletingResource, setDeletingResource] = useState<ResourceRecord | null>(null);
   const textColor = darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]';
   const mutedColor = darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]';
 
@@ -126,6 +133,8 @@ export function SpacePage({
                         onToggleMark={onToggleMark}
                         onLoginRequired={onLoginRequired}
                         onVisit={onVisit}
+                        onEditPrivate={setEditingResource}
+                        onDeletePrivate={setDeletingResource}
                       />
                     );
                   })}
@@ -140,8 +149,29 @@ export function SpacePage({
         darkMode={darkMode}
         t={t}
         onClose={() => setCreateDialogOpen(false)}
-        onCreate={onCreateResource}
+        onSubmit={onCreateResource}
         onMarkRecommendation={onToggleMark}
+      />
+      <PrivateResourceDialog
+        open={editingResource !== null}
+        mode="edit"
+        initialResource={editingResource}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setEditingResource(null)}
+        onSubmit={(input, reviewed) => {
+          if (!editingResource) return Promise.resolve({ status: 'invalid_input' });
+          return onUpdateResource(editingResource.id, input, reviewed);
+        }}
+        onMarkRecommendation={onToggleMark}
+      />
+      <DeleteResourceDialog
+        open={deletingResource !== null}
+        resource={deletingResource}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setDeletingResource(null)}
+        onDelete={onDeleteResource}
       />
     </section>
   );

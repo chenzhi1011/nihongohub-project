@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { PrivateResourceInput, SavePrivateResourceResult } from '../types/resource';
+import type { PrivateResourceInput, ResourceRecord, SavePrivateResourceResult } from '../types/resource';
 import { PrivateResourceDialog } from './PrivateResourceDialog';
 
 const labels: Record<string, string> = {
@@ -30,6 +30,8 @@ const labels: Record<string, string> = {
   similarResourceLimitReached: '同源资源数量已达上限',
   resourceSaveFailed: '保存失败，请重试',
   visitResource: '访问资源',
+  editResourceTitle: '编辑资源',
+  updateResource: '更新',
 };
 const t = (key: string) => labels[key] ?? key;
 
@@ -48,6 +50,18 @@ const recommendation = {
   matchType: 'same_normalized_url' as const,
 };
 
+const privateResource: ResourceRecord = {
+  id: 18,
+  category: 'listening',
+  name: 'My podcast',
+  description: 'Daily listening',
+  url: 'https://example.com/podcast',
+  tags: ['audio', 'daily'],
+  source: 'private',
+  marked: false,
+  sortOrder: 0,
+};
+
 const fillValidDraft = async () => {
   await userEvent.selectOptions(screen.getByLabelText('主题'), 'reading');
   await userEvent.type(screen.getByLabelText('名称'), '  My article  ');
@@ -56,19 +70,24 @@ const fillValidDraft = async () => {
   await userEvent.type(screen.getByLabelText('标签'), ' news, beginner,news ');
 };
 
-const renderDialog = (onCreate: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>) => {
+const renderDialog = (
+  onSubmit: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>,
+  options: { mode?: 'create' | 'edit'; initialResource?: ResourceRecord | null } = {},
+) => {
   const onClose = vi.fn();
-  render(
+  const view = render(
     <PrivateResourceDialog
       open
       darkMode={false}
       t={t}
       onClose={onClose}
-      onCreate={onCreate}
+      onSubmit={onSubmit}
       onMarkRecommendation={vi.fn()}
+      mode={options.mode}
+      initialResource={options.initialResource}
     />,
   );
-  return { onClose };
+  return { onClose, ...view };
 };
 
 describe('PrivateResourceDialog', () => {
@@ -147,5 +166,62 @@ describe('PrivateResourceDialog', () => {
 
     expect(screen.getByText('保存失败，请重试')).toBeInTheDocument();
     expect(screen.getByLabelText('名称')).toHaveValue('  My article  ');
+  });
+
+  it('prefills edit mode from a private resource', () => {
+    renderDialog(vi.fn(), { mode: 'edit', initialResource: privateResource });
+
+    expect(screen.getByRole('dialog', { name: '编辑资源' })).toBeInTheDocument();
+    expect(screen.getByLabelText('主题')).toHaveValue('listening');
+    expect(screen.getByLabelText('名称')).toHaveValue('My podcast');
+    expect(screen.getByLabelText('描述')).toHaveValue('Daily listening');
+    expect(screen.getByLabelText('URL')).toHaveValue('https://example.com/podcast');
+    expect(screen.getByLabelText('标签')).toHaveValue('audio, daily');
+  });
+
+  it('submits edited normalized input with reviewed=false', async () => {
+    const onSubmit = vi.fn().mockResolvedValue({ status: 'saved', resourceId: 18 });
+    renderDialog(onSubmit, { mode: 'edit', initialResource: privateResource });
+    await userEvent.clear(screen.getByLabelText('名称'));
+    await userEvent.type(screen.getByLabelText('名称'), '  Updated podcast  ');
+
+    await userEvent.click(screen.getByRole('button', { name: '更新' }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated podcast' }), false);
+  });
+
+  it('continues an edited same-source resource only after confirmation', async () => {
+    const onSubmit = vi.fn()
+      .mockResolvedValueOnce({ status: 'similar_review_required', recommendations: [recommendation] })
+      .mockResolvedValueOnce({ status: 'saved', resourceId: 18 });
+    renderDialog(onSubmit, { mode: 'edit', initialResource: privateResource });
+
+    await userEvent.click(screen.getByRole('button', { name: '更新' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole('button', { name: '确认并继续保存' }));
+    expect(onSubmit).toHaveBeenNthCalledWith(2, expect.any(Object), true);
+  });
+
+  it('restores the selected resource when the edit target changes', () => {
+    const onSubmit = vi.fn();
+    const { rerender } = renderDialog(onSubmit, { mode: 'edit', initialResource: privateResource });
+    const nextResource = { ...privateResource, id: 19, name: 'Second resource', tags: ['new'] };
+
+    rerender(
+      <PrivateResourceDialog
+        open
+        darkMode={false}
+        t={t}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        onMarkRecommendation={vi.fn()}
+        mode="edit"
+        initialResource={nextResource}
+      />,
+    );
+
+    expect(screen.getByLabelText('名称')).toHaveValue('Second resource');
+    expect(screen.getByLabelText('标签')).toHaveValue('new');
   });
 });
