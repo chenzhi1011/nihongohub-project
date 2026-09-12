@@ -6,19 +6,19 @@ select plan(5);
 select is(
   (select count(*)::integer from public.resources where owner_id is null),
   37,
-  'seed contains 37 canonical public resources'
+  'initialization migration contains 37 canonical public resources'
 );
 
 select is(
   (select count(*)::integer from public.resource_categories),
   43,
-  'seed preserves all 43 theme placements'
+  'initialization migration preserves all 43 theme placements'
 );
 
 select is(
   (select count(*)::integer from public.resources where owner_id is not null),
   0,
-  'seed never creates private resources'
+  'initialization migration never creates private resources'
 );
 
 select is(
@@ -36,7 +36,7 @@ select is(
 select is(
   (select count(*)::integer from public.resources where url like '%/https://%'),
   0,
-  'seed has no accidentally concatenated URLs'
+  'initialization migration has no accidentally concatenated URLs'
 );
 
 select * from finish();

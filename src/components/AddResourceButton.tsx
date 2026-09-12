@@ -11,16 +11,14 @@ export function AddResourceButton({ darkMode, t, onClick }: Props) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-lg border p-4 shadow-sm transition-all duration-200 hover:shadow-md ${
-        darkMode ? 'border-[#4a3f33] bg-[#2a241d]' : 'border-[#d8c8ae] bg-[#fff8ec]'
+      className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors duration-200 ${
+        darkMode
+          ? 'border-[#6e4b35] bg-[#3a2d24] text-[#ffd7b6] hover:bg-[#49372a]'
+          : 'border-[#d7ad87] bg-[#fff8ec] text-[#8f4621] hover:bg-[#f6e5d3]'
       }`}
     >
-      <span className="flex min-h-[124px] flex-col items-center justify-center gap-2 text-center">
-        <Plus className={`h-5 w-5 ${darkMode ? 'text-[#f0a36b]' : 'text-[#b3572a]'}`} />
-        <span className={`text-[1.05rem] font-semibold ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
-          {t('addResource')}
-        </span>
-      </span>
+      <Plus className="h-4 w-4" aria-hidden="true" />
+      <span>{t('addResource')}</span>
     </button>
   );
 }

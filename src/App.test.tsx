@@ -37,6 +37,7 @@ vi.mock('./hooks/useSupabaseAuth', () => ({
     loading: mocks.auth.loading,
     error: null,
     signInWithGoogle: vi.fn(),
+    signInWithEmail: vi.fn(),
     signInWithWeChat: vi.fn(),
     signOut: vi.fn(),
   }),

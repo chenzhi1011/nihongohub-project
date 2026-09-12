@@ -36,4 +36,19 @@ describe('authApi', () => {
       options: { redirectTo: 'https://nihongohub.test' },
     });
   });
+
+  it('sends a passwordless email with the configured return URL', async () => {
+    const signInWithOtp = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const client = { auth: { signInWithOtp } } as unknown as AppSupabaseClient;
+
+    await createAuthApi(client).signInWithMagicLink('learner@example.com', 'https://nihongohub.test');
+
+    expect(signInWithOtp).toHaveBeenCalledWith({
+      email: 'learner@example.com',
+      options: {
+        emailRedirectTo: 'https://nihongohub.test',
+        shouldCreateUser: true,
+      },
+    });
+  });
 });

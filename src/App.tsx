@@ -22,6 +22,7 @@ function App() {
     loading: authLoading,
     error: authError,
     signInWithGoogle,
+    signInWithEmail,
     signOut,
   } = useSupabaseAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -100,6 +101,7 @@ function App() {
         error={authError}
         t={t}
         onClose={() => setAuthDialogOpen(false)}
+        onEmailLogin={signInWithEmail}
         onGoogleLogin={signInWithGoogle}
       />
 

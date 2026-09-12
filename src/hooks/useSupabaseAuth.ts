@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import {
   getCurrentUser,
+  signInWithMagicLink as startMagicLinkLogin,
   signInWithGoogle as startGoogleLogin,
   signOut as endSession,
   subscribeToAuthState,
@@ -12,6 +13,7 @@ type AuthState = {
   loading: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
   signInWithWeChat: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -60,6 +62,16 @@ export function useSupabaseAuth(): AuthState {
     }
   }, [redirectTo]);
 
+  const signInWithEmail = useCallback(async (email: string) => {
+    setError(null);
+    try {
+      await startMagicLinkLogin(email.trim(), redirectTo);
+    } catch (error) {
+      setError('登录链接发送失败，请稍后重试。');
+      throw error;
+    }
+  }, [redirectTo]);
+
   const signInWithWeChat = useCallback(async () => {
     setError('微信登录将在后续版本开放，请先使用 Google 登录。');
   }, []);
@@ -73,5 +85,5 @@ export function useSupabaseAuth(): AuthState {
     }
   }, []);
 
-  return { user, loading, error, signInWithGoogle, signInWithWeChat, signOut };
+  return { user, loading, error, signInWithGoogle, signInWithEmail, signInWithWeChat, signOut };
 }

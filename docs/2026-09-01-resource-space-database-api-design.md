@@ -674,7 +674,8 @@ supabase/
 │   ├── 202609010002_create_resource_indexes_triggers.sql
 │   ├── 202609010003_create_resource_rls.sql
 │   └── 202609010004_create_resource_rpcs.sql
-├── seed.sql
+├── migrations/202609090001_initialize_public_resources.sql
+├── seed.sql                         # 保留为空，仅作为本地开发扩展入口
 └── README.md
 ```
 
@@ -684,7 +685,7 @@ supabase/
 2. `create_resource_indexes_triggers.sql`：索引、URL 规范化、`updated_at` trigger。
 3. `create_resource_rls.sql`：启用 RLS、创建 policies、撤销多余权限。
 4. `create_resource_rpcs.sql`：游客目录读取、Mark、原子浏览记录、相似资源查询、私人资源创建/更新及数量限制函数。
-5. `seed.sql`：当前静态公共资源的一次性导入。
+5. `202609090001_initialize_public_resources.sql`：正式公共资源的版本化初始化；`seed.sql` 不承载生产数据。
 6. `README.md`：本地执行、验证、回滚和远端应用步骤。
 
 这些 SQL 文件必须先经过人工评审和本地 Supabase 验证；在获得确认前，不对远端数据库执行任何迁移。
@@ -694,7 +695,7 @@ supabase/
 当前生产环境只有前端静态资源，没有需要迁移的数据库或用户数据。代码仓库中现有的 `user_resources`、`checkins` 调用属于未形成生产数据的早期代码，不作为旧数据源，也不设计数据迁移或双写。
 
 1. 在本地 Supabase 空库执行全部 migration，验证 schema、RLS、RPC 和测试。
-2. 通过 `seed.sql` 将当前 `src/data/categories.ts` 的公共资源一次性导入新 `resources` 表，并核对分类、数量、排序和 URL。
+2. 通过版本化 migration 将当前公共资源导入新 `resources` 表，并核对分类、数量、排序和 URL；远程部署不使用 `--include-seed`。
 3. 远端首次建库后再次执行相同核对，再发布使用新 API 的前端。
 4. 上线观察期内保留前端静态公共资源作为代码级回滚路径，但不同时向静态数据和数据库双写。
 5. 如需回滚，只将前端切回静态公共资源；新建数据库及上线后产生的用户数据保持不动，修复后继续使用，禁止通过回滚部署删除用户数据。
@@ -918,7 +919,7 @@ space.fetch.failed
 ### 14.5 建库、回滚与可观测性测试
 
 - migration 从空库完整升级成功，并能按 README 回滚前端读取路径。
-- `seed.sql` 导入结果与当前静态目录对账一致：37 个唯一公共资源、43 个主题位置，并保留各主题的 sort order。
+- 公共资源初始化 migration 与当前目录对账一致：37 个唯一公共资源、43 个主题位置，并保留各主题的 sort order。
 - 前端切回静态目录时，新数据库及已产生的用户数据不被删除或覆盖。
 - 构建产物不包含 `service_role` key、token 或生产 source map 公共地址。
 - 错误事件包含 `operationId`、`errorCode`、`release`、`environment` 和操作名。
@@ -939,7 +940,7 @@ space.fetch.failed
 
 1. 接入错误追踪、release 标记和日志脱敏，确保后续阶段发生错误时可定位。
 2. 建立数据库 schema、RLS、RPC 和测试，不连接生产页面。
-3. 通过 `seed.sql` 导入并校验当前静态公共资源；不执行旧用户数据迁移。
+3. 通过公共资源初始化 migration 导入并校验正式公共资源；不执行旧用户数据迁移。
 4. 前端切换目录读取，验证游客每类 6 条。
 5. 上线邮箱魔法链接和 Google 登录。
 6. 上线 Mark、浏览历史和 Space。

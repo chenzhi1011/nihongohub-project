@@ -1,4 +1,4 @@
-import { LogIn, X } from 'lucide-react';
+import { LogIn, Mail, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type Props = {
@@ -7,11 +7,15 @@ type Props = {
   error: string | null;
   t: (key: string) => string;
   onClose: () => void;
+  onEmailLogin: (email: string) => Promise<void>;
   onGoogleLogin: () => Promise<void>;
 };
 
-export function AuthDialog({ open, darkMode, error, t, onClose, onGoogleLogin }: Props) {
-  const [pending, setPending] = useState(false);
+export function AuthDialog({ open, darkMode, error, t, onClose, onEmailLogin, onGoogleLogin }: Props) {
+  const [pendingMethod, setPendingMethod] = useState<'email' | 'google' | null>(null);
+  const [email, setEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const pending = pendingMethod !== null;
 
   useEffect(() => {
     if (!open) return;
@@ -25,11 +29,25 @@ export function AuthDialog({ open, darkMode, error, t, onClose, onGoogleLogin }:
   if (!open) return null;
 
   const handleGoogleLogin = async () => {
-    setPending(true);
+    setPendingMethod('google');
     try {
       await onGoogleLogin();
     } finally {
-      setPending(false);
+      setPendingMethod(null);
+    }
+  };
+
+  const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPendingMethod('email');
+    setMagicLinkSent(false);
+    try {
+      await onEmailLogin(email.trim());
+      setMagicLinkSent(true);
+    } catch {
+      // The auth hook exposes the localized error above the form.
+    } finally {
+      setPendingMethod(null);
     }
   };
 
@@ -75,18 +93,63 @@ export function AuthDialog({ open, darkMode, error, t, onClose, onGoogleLogin }:
           </p>
         )}
 
+        {magicLinkSent && (
+          <p role="status" className={`mt-4 rounded-lg px-3 py-2 text-sm ${darkMode ? 'bg-[#294036] text-[#ccebdc]' : 'bg-[#e1f2e8] text-[#285b40]'}`}>
+            {t('magicLinkSent')}
+          </p>
+        )}
+
+        <form className="mt-4 space-y-2" onSubmit={(event) => void handleEmailLogin(event)}>
+          <label htmlFor="auth-email" className={`block text-sm font-medium ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
+            {t('emailAddress')}
+          </label>
+          <input
+            id="auth-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            placeholder={t('emailPlaceholder')}
+            disabled={pending}
+            onChange={(event) => setEmail(event.target.value)}
+            className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#c86b3c]/35 ${
+              darkMode
+                ? 'border-[#59493b] bg-[#1f1b16] text-[#f5ead8] placeholder:text-[#8b7f6f]'
+                : 'border-[#d8c8ae] bg-white text-[#2f2218] placeholder:text-[#a89a85]'
+            }`}
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
+              darkMode
+                ? 'bg-[#5d341f] text-[#ffd7b6] hover:bg-[#6e3e25]'
+                : 'bg-[#c86b3c] text-white hover:bg-[#b85f2f]'
+            }`}
+          >
+            <Mail className="h-4 w-4" />
+            {pendingMethod === 'email' ? t('emailSending') : t('loginEmail')}
+          </button>
+        </form>
+
+        <div className={`my-4 flex items-center gap-3 text-xs ${darkMode ? 'text-[#8b7f6f]' : 'text-[#a89a85]'}`}>
+          <span className={`h-px flex-1 ${darkMode ? 'bg-[#4a3f33]' : 'bg-[#d8c8ae]'}`} />
+          <span>{t('authOr')}</span>
+          <span className={`h-px flex-1 ${darkMode ? 'bg-[#4a3f33]' : 'bg-[#d8c8ae]'}`} />
+        </div>
+
         <button
           type="button"
           disabled={pending}
           onClick={() => void handleGoogleLogin()}
-          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
+          className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
             darkMode
               ? 'bg-[#5d341f] text-[#ffd7b6] hover:bg-[#6e3e25]'
               : 'bg-[#f6d9bf] text-[#8f4621] hover:bg-[#f1c8a3]'
           }`}
         >
           <LogIn className="h-4 w-4" />
-          {pending ? t('loginPending') : t('loginGoogle')}
+          {pendingMethod === 'google' ? t('loginPending') : t('loginGoogle')}
         </button>
       </div>
     </div>

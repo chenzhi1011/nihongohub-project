@@ -29,13 +29,29 @@ const baseProps = {
 };
 
 describe('Header authentication actions', () => {
-  it('asks the parent to open login for a guest', async () => {
+  it('keeps wide navigation and account actions hidden until 2xl screens', () => {
+    const { container } = render(<Header {...baseProps} userEmail={null} />);
+
+    expect(container.querySelector('nav')).toHaveClass('hidden', '2xl:flex');
+    expect(screen.getByTestId('desktop-account-actions')).toHaveClass('hidden', '2xl:flex');
+    expect(screen.getByRole('button', { name: 'Open navigation menu' })).toHaveClass('2xl:hidden');
+  });
+
+  it('shows account actions inside the compact navigation menu without wrapping labels', () => {
+    render(<Header {...baseProps} userEmail="learner@example.com" mobileMenuOpen />);
+
+    const spaceActions = screen.getAllByRole('button', { name: '我的 Space' });
+    expect(spaceActions[spaceActions.length - 1]).toHaveClass('whitespace-nowrap');
+  });
+
+  it('shows Space for a guest and opens login when it is clicked', async () => {
     const onOpenLogin = vi.fn();
     render(<Header {...baseProps} userEmail={null} onOpenLogin={onOpenLogin} />);
 
-    await userEvent.click(screen.getByRole('button', { name: '登录' }));
+    await userEvent.click(screen.getByRole('button', { name: '我的 Space' }));
 
     expect(onOpenLogin).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: '登录' })).not.toBeInTheDocument();
   });
 
   it('shows Space and logout actions for an authenticated user', async () => {
