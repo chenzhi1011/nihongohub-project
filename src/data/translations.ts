@@ -139,6 +139,10 @@ export const translations: TranslationMap = {
   // Anti-spam feedback errors
   feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },
   feedbackCooldownError: { zh: '发送太频繁，请稍后再试。', jp: '送信が頻繁すぎます。しばらくしてからお試しください。' },
+  feedbackInvalidError: { zh: '请输入 1–1000 字符的反馈内容。', jp: '1〜1000文字でフィードバックを入力してください。' },
+  feedbackRateLimitError: { zh: '发送过于频繁，请 60 秒后再试。', jp: '送信が頻繁です。60秒後にもう一度お試しください。' },
+  feedbackDailyLimitError: { zh: '今日反馈次数已达上限，请明天再试。', jp: '本日の送信上限に達しました。明日もう一度お試しください。' },
+  feedbackSubmitFailed: { zh: '反馈提交失败，请稍后重试。', jp: 'フィードバックを送信できませんでした。しばらくしてからお試しください。' },
 
   // Auth
   login: { zh: '登录', jp: 'ログイン' },
