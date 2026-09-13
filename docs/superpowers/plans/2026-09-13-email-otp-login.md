@@ -21,6 +21,8 @@
 - Modify `src/App.tsx`: wire both email actions and close the dialog after authentication.
 - Modify `src/App.test.tsx`: verify integration and automatic close.
 - Modify `src/data/translations.ts`: replace Magic Link copy and add OTP UI copy in Chinese and Japanese.
+- Modify `supabase/config.toml`: point local Auth at the OTP email template.
+- Create `supabase/templates/magic_link.html`: render `{{ .Token }}` for local email testing.
 
 ### Task 1: Typed Supabase OTP API
 
@@ -249,12 +251,17 @@ git commit -m "feat: complete email OTP login flow"
 ### Task 5: Manual Supabase Configuration Handoff
 
 **Files:**
-- No code changes.
+- Modify: `supabase/config.toml`
+- Create: `supabase/templates/magic_link.html`
 
-- [ ] **Step 1: Provide the remote configuration checklist**
+- [ ] **Step 1: Configure local OTP email rendering**
+
+Set `[auth.email.template.magic_link]` to `./supabase/templates/magic_link.html`. The local template must display `{{ .Token }}` and must not contain `{{ .ConfirmationURL }}`.
+
+- [ ] **Step 2: Provide the remote configuration checklist**
 
 Tell the user to replace `{{ .ConfirmationURL }}` with `{{ .Token }}` in the hosted Supabase Magic Link template, retain Resend SMTP, and verify remote OTP length is six.
 
-- [ ] **Step 2: Do not mutate remote services**
+- [ ] **Step 3: Do not mutate remote services**
 
 Wait for explicit authorization before changing Supabase Dashboard, Vercel, DNS, Google OAuth, or Resend configuration.

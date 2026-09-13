@@ -1,7 +1,7 @@
 # 邮箱验证码登录设计
 
 - 日期：2026-09-13
-- 状态：待用户 Review
+- 状态：已实施
 - 实施分支：`feature/email-otp-login`
 - 基线：远程 `dev`（`83516d8`）
 
@@ -160,6 +160,8 @@ type PendingAuthAction = 'google' | 'send-otp' | 'verify-otp' | 'resend-otp' | n
 ```
 
 并移除用于直接登录的 `{{ .ConfirmationURL }}`。邮件中可以保留 Nihongo Hub 品牌文案，但不得记录或转发验证码。
+
+本地环境通过 `supabase/config.toml` 的 `[auth.email.template.magic_link]` 加载 `supabase/templates/magic_link.html`。该模板同样只展示 `{{ .Token }}`，保证本地 Mailpit 测试与远程行为一致。
 
 本地 `supabase/config.toml` 的邮箱 OTP 长度保持为 6，远程环境也配置为 6 位；否则前端长度校验会与服务端不一致。当前过期时间保持 Supabase 环境设置，不在前端写死“有效多少分钟”的承诺。
 
