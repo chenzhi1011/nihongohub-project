@@ -9,18 +9,10 @@ export interface TranslationEntry {
 
 export type TranslationMap = Record<string, TranslationEntry>;
 
-export interface Resource {
-  name: string;
-  description: string;
-  url: string;
-  tags: string[];
-}
-
-export interface Category {
+export interface CategoryMetadata {
   id: string;
   nameKey: string;
   icon: ElementType;
-  resources: Resource[];
 }
 
 export interface TodaysPhrase {

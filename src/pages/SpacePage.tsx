@@ -1,0 +1,222 @@
+import { useState } from 'react';
+import type { PrivateResourceInput, ResourceRecord, SavePrivateResourceResult, SpaceSnapshot } from '../types/resource';
+import { categories } from '../data/categories';
+import { AddResourceButton } from '../components/AddResourceButton';
+import { DeleteResourceDialog } from '../components/DeleteResourceDialog';
+import { HistoryRail } from '../components/HistoryRail';
+import { PrivateResourceDialog } from '../components/PrivateResourceDialog';
+import { ResourceCard } from '../components/ResourceCard';
+import { MonthlyCheckinCalendar } from '../components/MonthlyCheckinCalendar';
+import type { MonthlyCheckinCalendarModel } from '../service/dailyCheckinService';
+
+type Props = {
+  authenticated: boolean;
+  loading: boolean;
+  error: unknown;
+  data: SpaceSnapshot | null;
+  darkMode: boolean;
+  t: (key: string) => string;
+  onLoginRequired: () => void;
+  onRetry: () => void;
+  resolveMarked: (resourceId: number, serverMarked: boolean) => boolean;
+  markPendingIds: number[];
+  onToggleMark: (resourceId: number, marked: boolean) => void;
+  onVisit: (resourceId: number) => void;
+  onCreateResource: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
+  onUpdateResource: (resourceId: number, input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
+  onDeleteResource: (resourceId: number) => Promise<void>;
+  checkinCalendar: MonthlyCheckinCalendarModel;
+  checkinLoading: boolean;
+  checkinError: unknown;
+  checkedToday: boolean;
+  checkinSubmitting: boolean;
+  onCheckIn: () => void;
+  onRetryCheckins: () => void;
+};
+
+export function SpacePage({
+  authenticated,
+  loading,
+  error,
+  data,
+  darkMode,
+  t,
+  onLoginRequired,
+  onRetry,
+  resolveMarked,
+  markPendingIds,
+  onToggleMark,
+  onVisit,
+  onCreateResource,
+  onUpdateResource,
+  onDeleteResource,
+  checkinCalendar,
+  checkinLoading,
+  checkinError,
+  checkedToday,
+  checkinSubmitting,
+  onCheckIn,
+  onRetryCheckins,
+}: Props) {
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<ResourceRecord | null>(null);
+  const [deletingResource, setDeletingResource] = useState<ResourceRecord | null>(null);
+  const textColor = darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]';
+  const mutedColor = darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]';
+
+  if (!authenticated) {
+    return (
+      <section className="py-12 text-center">
+        <h1 className={`text-3xl font-bold ${textColor}`}>{t('space')}</h1>
+        <p className={`mt-3 ${mutedColor}`}>{t('loginRequired')}</p>
+        <button
+          type="button"
+          onClick={onLoginRequired}
+          className="mt-5 rounded-lg bg-[#c86b3c] px-5 py-2.5 font-medium text-white hover:bg-[#b85f2f]"
+        >
+          {t('login')}
+        </button>
+      </section>
+    );
+  }
+
+  if (loading) {
+    return <p role="status" className={mutedColor}>{t('spaceLoading')}</p>;
+  }
+
+  if (error || !data) {
+    return (
+      <div role="alert" className={`rounded-lg border p-5 text-center ${darkMode ? 'border-[#70453e] bg-[#3b2925] text-[#ffd2ca]' : 'border-[#dfb7ae] bg-[#fff0ed] text-[#7d3027]'}`}>
+        <p>{t('spaceLoadFailed')}</p>
+        <button type="button" className="mt-3 underline" onClick={onRetry}>{t('retry')}</button>
+      </div>
+    );
+  }
+
+  const visibleSections = data.sections.flatMap((section) => {
+    const metadata = categories.find((category) => category.id === section.category);
+    if (!metadata) return [];
+    const resources = section.resources.filter((resource) => (
+      resource.source === 'private' || resolveMarked(resource.id, resource.marked)
+    ));
+    return resources.length > 0 ? [{ ...section, metadata, resources }] : [];
+  });
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className={`text-3xl font-bold ${textColor}`}>{t('space')}</h1>
+        <AddResourceButton darkMode={darkMode} t={t} onClick={() => setCreateDialogOpen(true)} />
+      </div>
+      <div
+        data-testid="space-checkin-history-row"
+        className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:items-stretch"
+      >
+        <div data-testid="checkin-column" className="min-w-0 lg:flex lg:flex-col">
+          <h2 className={`mb-3 text-lg font-semibold ${textColor}`}>{t('learningCheckin')}</h2>
+          <MonthlyCheckinCalendar
+            calendar={checkinCalendar}
+            loading={checkinLoading}
+            error={checkinError}
+            checkedToday={checkedToday}
+            submitting={checkinSubmitting}
+            darkMode={darkMode}
+            t={t}
+            onCheckIn={onCheckIn}
+            onRetry={onRetryCheckins}
+          />
+        </div>
+        <div data-testid="history-column" className="min-w-0 lg:flex lg:flex-col">
+          <h2 className={`mb-3 text-lg font-semibold ${textColor}`}>{t('recentHistory')}</h2>
+          <div
+            data-testid="browsing-history-panel"
+            className={`rounded-xl border p-4 lg:flex-1 ${data.recentHistory.length === 0 ? 'flex min-h-40 items-center justify-center lg:min-h-0' : ''} ${darkMode ? 'border-[#4a3f33] bg-[#2a241d]' : 'border-[#d8c8ae] bg-[#fff8ec]'}`}
+          >
+            {data.recentHistory.length > 0 ? (
+            <HistoryRail items={data.recentHistory} darkMode={darkMode} t={t} onVisit={onVisit} />
+            ) : (
+              <p className={`text-sm ${mutedColor}`}>
+                {t('noBrowsingHistory')}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+      <h2 className={`mt-10 text-lg font-semibold ${textColor}`}>{t('myResources')}</h2>
+      {visibleSections.length === 0 ? (
+        <p className={`mt-4 ${mutedColor}`}>{t('spaceEmpty')}</p>
+      ) : (
+        <div className="mt-6 space-y-10">
+          {visibleSections.map((section) => {
+            const { metadata } = section;
+            const Icon = metadata.icon;
+
+            return (
+              <section key={section.category} aria-labelledby={`space-section-${section.category}`}>
+                <div className="mb-4 flex items-center gap-3">
+                  <Icon className={`h-6 w-6 ${darkMode ? 'text-[#f0a36b]' : 'text-[#b3572a]'}`} />
+                  <h3 id={`space-section-${section.category}`} className={`text-2xl font-semibold ${textColor}`}>
+                    {t(metadata.nameKey)}
+                  </h3>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {section.resources.map((resource) => {
+                    const marked = resource.source === 'public'
+                      ? resolveMarked(resource.id, resource.marked)
+                      : false;
+                    return (
+                      <ResourceCard
+                        key={`${resource.id}-${resource.category}`}
+                        resource={resource}
+                        authenticated
+                        marked={marked}
+                        markPending={markPendingIds.includes(resource.id)}
+                        darkMode={darkMode}
+                        t={t}
+                        variant="category"
+                        onToggleMark={onToggleMark}
+                        onLoginRequired={onLoginRequired}
+                        onVisit={onVisit}
+                        onEditPrivate={setEditingResource}
+                        onDeletePrivate={setDeletingResource}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+      <PrivateResourceDialog
+        open={createDialogOpen}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setCreateDialogOpen(false)}
+        onSubmit={onCreateResource}
+        onMarkRecommendation={onToggleMark}
+      />
+      <PrivateResourceDialog
+        open={editingResource !== null}
+        mode="edit"
+        initialResource={editingResource}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setEditingResource(null)}
+        onSubmit={(input, reviewed) => {
+          if (!editingResource) return Promise.resolve({ status: 'invalid_input' });
+          return onUpdateResource(editingResource.id, input, reviewed);
+        }}
+        onMarkRecommendation={onToggleMark}
+      />
+      <DeleteResourceDialog
+        open={deletingResource !== null}
+        resource={deletingResource}
+        darkMode={darkMode}
+        t={t}
+        onClose={() => setDeletingResource(null)}
+        onDelete={onDeleteResource}
+      />
+    </section>
+  );
+}
