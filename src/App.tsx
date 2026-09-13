@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthDialog } from './components/AuthDialog';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
@@ -14,16 +15,21 @@ import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useSpace } from './hooks/useSpace';
 import { CategoryPage } from './pages/CategoryPage';
 import { HomePage } from './pages/HomePage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { SearchResults } from './pages/SearchResults';
 import { SpacePage } from './pages/SpacePage';
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const privacyPageOpen = location.pathname === '/privacy';
   const {
     user,
     loading: authLoading,
     error: authError,
     signInWithGoogle,
-    signInWithEmail,
+    sendEmailOtp,
+    verifyEmailOtp,
     signOut,
   } = useSupabaseAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -33,6 +39,10 @@ function App() {
   const retryCatalog = catalog.retry;
   const retrySpace = space.retry;
   const lastCatalogIdentity = useRef<string | null>();
+
+  useEffect(() => {
+    if (user) setAuthDialogOpen(false);
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -103,17 +113,22 @@ function App() {
         error={authError}
         t={t}
         onClose={() => setAuthDialogOpen(false)}
-        onEmailLogin={signInWithEmail}
+        onSendEmailOtp={sendEmailOtp}
+        onVerifyEmailOtp={verifyEmailOtp}
         onGoogleLogin={signInWithGoogle}
+        onOpenPrivacy={() => { setAuthDialogOpen(false); navigate('/privacy'); }}
       />
 
-      {activeCategory === 'home' && (
+      {activeCategory === 'home' && !privacyPageOpen && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <UpdateNotice darkMode={darkMode} language={language} />
         </div>
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {privacyPageOpen ? (
+          <PrivacyPage darkMode={darkMode} language={language} onBack={() => navigate('/')} />
+        ) : <>
         {activeCategory !== 'space' && <div className="mb-8">
           <div className="relative max-w-lg mx-auto">
             <Search
@@ -211,11 +226,12 @@ function App() {
         )}
           </>
         )}
+        </>}
       </main>
 
       <Footer darkMode={darkMode} t={t} />
       <Analytics />
-      <FeedbackFab
+      {!privacyPageOpen && <FeedbackFab
         darkMode={darkMode}
         t={t}
         authenticated={Boolean(user)}
@@ -223,7 +239,7 @@ function App() {
         checkinSubmitting={dailyCheckin.submitting}
         onCheckIn={() => void dailyCheckin.checkIn()}
         onLoginRequired={() => setAuthDialogOpen(true)}
-      />
+      />}
     </div>
   );
 }

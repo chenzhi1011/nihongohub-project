@@ -37,18 +37,46 @@ describe('authApi', () => {
     });
   });
 
-  it('sends a passwordless email with the configured return URL', async () => {
+  it('sends an email OTP and allows automatic account creation', async () => {
     const signInWithOtp = vi.fn().mockResolvedValue({ data: {}, error: null });
     const client = { auth: { signInWithOtp } } as unknown as AppSupabaseClient;
 
-    await createAuthApi(client).signInWithMagicLink('learner@example.com', 'https://nihongohub.test');
+    await createAuthApi(client).sendEmailOtp('learner@example.com');
 
     expect(signInWithOtp).toHaveBeenCalledWith({
       email: 'learner@example.com',
-      options: {
-        emailRedirectTo: 'https://nihongohub.test',
-        shouldCreateUser: true,
-      },
+      options: { shouldCreateUser: true },
     });
+  });
+
+  it('verifies an email OTP to establish a session', async () => {
+    const verifyOtp = vi.fn().mockResolvedValue({ data: { session: {} }, error: null });
+    const client = { auth: { verifyOtp } } as unknown as AppSupabaseClient;
+
+    await createAuthApi(client).verifyEmailOtp('learner@example.com', '123456');
+
+    expect(verifyOtp).toHaveBeenCalledWith({
+      email: 'learner@example.com',
+      token: '123456',
+      type: 'email',
+    });
+  });
+
+  it.each([
+    ['sendEmailOtp', 'signInWithOtp'],
+    ['verifyEmailOtp', 'verifyOtp'],
+  ] as const)('maps errors returned by %s', async (method, sdkMethod) => {
+    const client = {
+      auth: {
+        [sdkMethod]: vi.fn().mockResolvedValue({ data: {}, error: { message: 'auth failed', status: 503 } }),
+      },
+    } as unknown as AppSupabaseClient;
+    const api = createAuthApi(client);
+
+    const action = method === 'sendEmailOtp'
+      ? api.sendEmailOtp('learner@example.com')
+      : api.verifyEmailOtp('learner@example.com', '123456');
+
+    await expect(action).rejects.toMatchObject({ name: 'AppError', retryable: true } satisfies Partial<AppError>);
   });
 });
