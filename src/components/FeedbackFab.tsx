@@ -1,5 +1,6 @@
-import { Check, Circle, MessageSquareText, Send, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { MessageSquareText, Send, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { DailyCheckinButton } from './DailyCheckinButton';
 
 const FEEDBACK_EMAIL = 'chinnshi.c@qq.com';
 const FEEDBACK_SITE_NAME = '日本語HUB';
@@ -11,11 +12,23 @@ const FEEDBACK_COOLDOWN_MS = 180_000; // 3 minutes
 type Props = {
   darkMode: boolean;
   t: (key: string) => string;
+  authenticated?: boolean;
+  checkedToday?: boolean;
+  checkinSubmitting?: boolean;
+  onCheckIn?: () => void;
+  onLoginRequired?: () => void;
 };
 
-export function FeedbackFab({ darkMode, t }: Props) {
+export function FeedbackFab({
+  darkMode,
+  t,
+  authenticated = false,
+  checkedToday = false,
+  checkinSubmitting = false,
+  onCheckIn = () => undefined,
+  onLoginRequired = () => undefined,
+}: Props) {
   const [open, setOpen] = useState(false);
-  const [devModalOpen, setDevModalOpen] = useState(false);
   const [text, setText] = useState('');
   const [resourcePref, setResourcePref] = useState('');
   const [resourcePrefOther, setResourcePrefOther] = useState('');
@@ -109,37 +122,28 @@ export function FeedbackFab({ darkMode, t }: Props) {
     window.location.href = href;
   };
 
-  const onDailyClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
+  const onDailyClick = () => {
     window.umami?.track('click_daily_checkin_button', { link: '/track/daily-checkin-button' });
-    setDevModalOpen(true);
+    if (!authenticated) {
+      onLoginRequired();
+      return;
+    }
+    onCheckIn();
   };
 
   return (
     <>
       <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end gap-3">
         {/* Daily check-in */}
-        <div className="relative w-[52px] h-[52px] group">
-          <a
-            href="/track/daily-checkin-button"
-            aria-label="Daily check-in"
+        <div className="relative h-[52px] w-[52px]">
+          <DailyCheckinButton
+            checked={checkedToday}
+            submitting={checkinSubmitting}
+            compact
+            darkMode={darkMode}
+            t={t}
             onClick={onDailyClick}
-            className={`absolute right-0 top-0 flex items-center justify-center gap-0 h-[52px] w-[52px] rounded-full overflow-hidden transition-all duration-300 shadow-lg text-white ${
-              darkMode ? 'bg-[#2f6f5a] hover:bg-[#3a846c]' : 'bg-[#3b7d67] hover:bg-[#2f6f5a]'
-            } group-hover:w-[180px] group-hover:rounded-2xl group-hover:justify-start group-hover:pl-4 group-hover:gap-2`}
-          >
-            <span className="relative w-5 h-5 flex-shrink-0">
-              <Circle className="w-5 h-5" />
-              <Check className="absolute inset-0 m-auto w-6 h-6" strokeWidth={2.75} />
-            </span>
-            <span
-              className={`whitespace-nowrap font-semibold text-sm max-w-0 opacity-0 transition-all duration-300 ${
-                darkMode ? 'text-white' : 'text-white'
-              } group-hover:max-w-[120px] group-hover:opacity-100 ml-0`}
-            >
-              {t('dailyCheckInButton')}
-            </span>
-          </a>
+          />
         </div>
 
         {/* Feedback */}
@@ -325,52 +329,6 @@ export function FeedbackFab({ darkMode, t }: Props) {
         </div>
       )}
 
-      {devModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            role="presentation"
-            onClick={() => setDevModalOpen(false)}
-          />
-
-          <div
-            role="dialog"
-            aria-modal="true"
-            className={`relative w-full max-w-sm rounded-lg shadow-lg border p-4 ${
-              darkMode ? 'bg-[#2a241d] border-[#4a3f33]' : 'bg-[#fff8ec] border-[#d8c8ae]'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className={`text-lg font-bold ${darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]'}`}>
-                {t('devInProgressTitle')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setDevModalOpen(false)}
-                className={`p-2 rounded-md transition-colors ${
-                  darkMode ? 'text-[#d8c4ad] hover:bg-[#3a3128]' : 'text-[#6b5845] hover:bg-[#efe1ce]'
-                }`}
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className={`${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'} text-sm`}>{t('devInProgressDesc')}</p>
-            <button
-              type="button"
-              onClick={() => setDevModalOpen(false)}
-              className={`mt-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                darkMode
-                  ? 'bg-[#3a3128] text-[#d8c4ad] hover:bg-[#4a3e31] hover:text-[#fff0dc]'
-                  : 'bg-[#efe1ce] text-[#6b5845] hover:bg-[#e7d5bd] hover:text-[#3f3022]'
-              }`}
-            >
-              {t('devInProgressOk')}
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }
