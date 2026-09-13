@@ -1,0 +1,3 @@
+-- Intentionally empty.
+-- The curated public catalog is production reference data and is versioned in:
+-- supabase/migrations/202609090001_initialize_public_resources.sql
