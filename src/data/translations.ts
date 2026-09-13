@@ -108,14 +108,15 @@ export const translations: TranslationMap = {
   allLevels: { zh: '所有级别', jp: '全レベル対応' },
 
   // Feedback FAB
-  feedbackTitle: { zh: '发送意见', jp: 'ご意見を送信' },
+  feedbackTitle: { zh: '反馈意见', jp: 'フィードバック' },
+  feedbackContentLabel: { zh: '反馈内容', jp: 'フィードバック内容' },
   feedbackPlaceholder: {
-    zh: '请输入你的意见（会通过邮件发送到开发者邮箱）',
-    jp: 'ご意見を入力してください（メールで送信されます）',
+    zh: '请告诉我们你的想法',
+    jp: 'ご意見やご要望をお聞かせください',
   },
-  feedbackSend: { zh: '发送', jp: '送信' },
+  feedbackSend: { zh: '提交反馈', jp: '送信' },
   feedbackCancel: { zh: '取消', jp: 'キャンセル' },
-  feedbackSubmitSubject: { zh: '日本語HUB - 发送意见', jp: '日本語HUB - ご意見' },
+  feedbackSuccess: { zh: '感谢你的反馈！', jp: 'フィードバックありがとうございます！' },
 
   // Daily check-in (FAB)
   dailyCheckInButton: { zh: '今日打卡', jp: '今日チェック' },
@@ -137,8 +138,6 @@ export const translations: TranslationMap = {
   futureDate: { zh: '未来日期', jp: '未来の日付' },
 
   // Anti-spam feedback errors
-  feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },
-  feedbackCooldownError: { zh: '发送太频繁，请稍后再试。', jp: '送信が頻繁すぎます。しばらくしてからお試しください。' },
   feedbackInvalidError: { zh: '请输入 1–1000 字符的反馈内容。', jp: '1〜1000文字でフィードバックを入力してください。' },
   feedbackRateLimitError: { zh: '发送过于频繁，请 60 秒后再试。', jp: '送信が頻繁です。60秒後にもう一度お試しください。' },
   feedbackDailyLimitError: { zh: '今日反馈次数已达上限，请明天再试。', jp: '本日の送信上限に達しました。明日もう一度お試しください。' },
@@ -152,6 +151,14 @@ export const translations: TranslationMap = {
   loginMethodTitle: { zh: '登录', jp: 'ログイン' },
   loginMethodDesc: { zh: '使用以下方式快速登录', jp: '以下の方法で素早くログインできます' },
   authBrand: { zh: 'Nihongo Hub', jp: 'Nihongo Hub' },
+  spaceLaunchTitle: { zh: '我的学习空间已上线', jp: 'マイスペースを公開しました' },
+  spaceLaunchDescription: { zh: '收藏公共资源、添加自己的学习链接，让每天的学习轨迹自然形成。', jp: '公開リソースをMarkし、自分の学習リンクを追加して、毎日の学習記録をひとつにまとめましょう。' },
+  spaceLaunchMark: { zh: 'Mark 公共资源', jp: '公開リソースをMark' },
+  spaceLaunchPrivateResource: { zh: '添加私人资源', jp: '個人リソースを追加' },
+  spaceLaunchPath: { zh: '形成学习路径', jp: '学習ルートを整理' },
+  spaceLaunchCheckin: { zh: '每日学习打卡', jp: '毎日の学習チェック' },
+  spaceLaunchLater: { zh: '稍后看看', jp: 'あとで見る' },
+  spaceLaunchLogin: { zh: '立即登录', jp: 'ログインする' },
   privacyConsentPrefix: { zh: '继续即表示你已阅读', jp: '続行すると、以下を確認したものとみなされます：' },
   privacyPolicy: { zh: '隐私政策', jp: 'プライバシーポリシー' },
   authCancel: { zh: '取消', jp: 'キャンセル' },

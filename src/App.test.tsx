@@ -41,6 +41,13 @@ const mocks = vi.hoisted(() => ({
     retry: vi.fn(async () => undefined),
   },
   dailyCheckinArgs: [] as Array<[boolean, string | null]>,
+  feedback: {
+    submitting: false,
+    error: null as string | null,
+    succeeded: false,
+    submitFeedback: vi.fn(async () => true),
+    clearFeedbackState: vi.fn(),
+  },
 }));
 
 vi.mock('./hooks/useCatalog', () => ({
@@ -90,6 +97,10 @@ vi.mock('./hooks/useDailyCheckin', () => ({
   },
 }));
 
+vi.mock('./hooks/useFeedback', () => ({
+  useFeedback: () => mocks.feedback,
+}));
+
 import App from './App';
 
 describe('App catalog states', () => {
@@ -118,6 +129,12 @@ describe('App catalog states', () => {
     mocks.dailyCheckin.checkIn.mockClear();
     mocks.dailyCheckin.retry.mockClear();
     mocks.dailyCheckinArgs.length = 0;
+    mocks.feedback.submitting = false;
+    mocks.feedback.error = null;
+    mocks.feedback.succeeded = false;
+    mocks.feedback.submitFeedback.mockClear();
+    mocks.feedback.clearFeedbackState.mockClear();
+    window.localStorage.setItem('nihongohub.announcement.spaceLaunch.v1', '1');
   });
 
   it('shows catalog loading before rendering catalog pages', () => {
@@ -151,6 +168,63 @@ describe('App catalog states', () => {
 
     expect(screen.getByRole('heading', { name: 'プライバシーポリシー' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'chinshi.c@qq.com' })).toHaveAttribute('href', 'mailto:chinshi.c@qq.com');
+    expect(screen.getByText(/フィードバック内容/)).toBeInTheDocument();
+  });
+
+  it('shows the Space launch announcement once to a new anonymous visitor', async () => {
+    window.localStorage.removeItem('nihongohub.announcement.spaceLaunch.v1');
+    mocks.catalog.loading = false;
+    const view = render(<MemoryRouter><App /></MemoryRouter>);
+
+    expect(screen.getByRole('dialog', { name: /マイスペースを公開しました|我的学习空间已上线/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /あとで見る|稍后再说/ }));
+    expect(window.localStorage.getItem('nihongohub.announcement.spaceLaunch.v1')).toBe('1');
+
+    view.unmount();
+    render(<MemoryRouter><App /></MemoryRouter>);
+    expect(screen.queryByRole('dialog', { name: /マイスペースを公開しました|我的学习空间已上线/ })).not.toBeInTheDocument();
+  });
+
+  it('opens login from the Space launch announcement', async () => {
+    window.localStorage.removeItem('nihongohub.announcement.spaceLaunch.v1');
+    mocks.catalog.loading = false;
+    render(<MemoryRouter><App /></MemoryRouter>);
+
+    await userEvent.click(screen.getByRole('button', { name: /ログインする|登录并开始/ }));
+
+    expect(screen.getByRole('dialog', { name: /ログイン/ })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /マイスペースを公開しました|我的学习空间已上线/ })).not.toBeInTheDocument();
+  });
+
+  it('does not show the launch announcement to an authenticated user', () => {
+    window.localStorage.removeItem('nihongohub.announcement.spaceLaunch.v1');
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    mocks.catalog.loading = false;
+    render(<MemoryRouter><App /></MemoryRouter>);
+
+    expect(screen.queryByRole('dialog', { name: /マイスペースを公開しました|我的学习空间已上线/ })).not.toBeInTheDocument();
+  });
+
+  it('requires login before opening feedback', async () => {
+    mocks.catalog.loading = false;
+    render(<MemoryRouter><App /></MemoryRouter>);
+
+    await userEvent.click(screen.getByRole('button', { name: /フィードバック|反馈意见/ }));
+
+    expect(screen.getByRole('dialog', { name: /ログイン/ })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /フィードバック内容|反馈内容/ })).not.toBeInTheDocument();
+  });
+
+  it('submits authenticated feedback through the feedback hook', async () => {
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    mocks.catalog.loading = false;
+    render(<MemoryRouter><App /></MemoryRouter>);
+
+    await userEvent.click(screen.getByRole('button', { name: /フィードバック|反馈意见/ }));
+    await userEvent.type(screen.getByRole('textbox', { name: /フィードバック内容|反馈内容/ }), '改善案');
+    await userEvent.click(screen.getByRole('button', { name: /送信|提交反馈/ }));
+
+    expect(mocks.feedback.submitFeedback).toHaveBeenCalledWith('改善案');
   });
 
   it('wires email OTP actions and closes the dialog after authentication', async () => {
