@@ -145,6 +145,14 @@ describe('App catalog states', () => {
     expect(screen.getByText(/先にログイン|请先登录/)).toBeInTheDocument();
   });
 
+  it('renders the privacy policy at its direct URL', () => {
+    mocks.catalog.loading = false;
+    render(<MemoryRouter initialEntries={['/privacy']}><App /></MemoryRouter>);
+
+    expect(screen.getByRole('heading', { name: 'プライバシーポリシー' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'chinshi.c@qq.com' })).toHaveAttribute('href', 'mailto:chinshi.c@qq.com');
+  });
+
   it('wires email OTP actions and closes the dialog after authentication', async () => {
     mocks.catalog.loading = false;
     const view = render(<MemoryRouter><App /></MemoryRouter>);

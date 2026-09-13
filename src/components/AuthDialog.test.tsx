@@ -14,6 +14,7 @@ const t = (key: string) => ({
   resendEmailOtpIn: '{seconds} 秒后可重新发送', resendEmailOtp: '重新发送验证码',
   emailOtpResent: '验证码已重新发送。', changeEmail: '更换邮箱',
   backToLoginMethods: '返回登录方式', loginPending: '正在跳转…', close: '关闭',
+  authBrand: 'Nihongo Hub', privacyConsentPrefix: '继续即表示你已阅读', privacyPolicy: '隐私政策',
 }[key] ?? key);
 
 const renderDialog = (overrides: Partial<React.ComponentProps<typeof AuthDialog>> = {}) => {
@@ -22,6 +23,7 @@ const renderDialog = (overrides: Partial<React.ComponentProps<typeof AuthDialog>
     onSendEmailOtp: vi.fn().mockResolvedValue(undefined),
     onVerifyEmailOtp: vi.fn().mockResolvedValue(undefined),
     onGoogleLogin: vi.fn().mockResolvedValue(undefined),
+    onOpenPrivacy: vi.fn(),
     ...overrides,
   };
   const view = render(<AuthDialog {...props} />);
@@ -44,6 +46,43 @@ describe('AuthDialog', () => {
     expect(screen.getByRole('button', { name: '邮箱验证码登录' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Google 登录' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: '邮箱地址' })).not.toBeInTheDocument();
+  });
+
+  it('uses the Google brand mark for Google login', () => {
+    renderDialog();
+    const googleButton = screen.getByRole('button', { name: 'Google 登录' });
+    expect(googleButton.querySelector('[data-google-icon]')).toBeInTheDocument();
+    expect(googleButton.querySelectorAll('[data-google-icon] path')).toHaveLength(4);
+  });
+
+  it('keeps the login header minimal without a decorative logo', () => {
+    renderDialog();
+    expect(screen.queryByText('日')).not.toBeInTheDocument();
+  });
+
+  it('uses a four-to-five portrait layout for the login panel', () => {
+    renderDialog();
+    expect(screen.getByRole('dialog')).toHaveClass('aspect-[4/5]');
+  });
+
+  it('shows the product name and opens the privacy policy', async () => {
+    const { props } = renderDialog();
+    expect(screen.getByText('Nihongo Hub')).toBeInTheDocument();
+    const privacyLink = screen.getByRole('link', { name: '隐私政策' });
+    expect(privacyLink).toHaveAttribute('href', '/privacy');
+    await userEvent.click(privacyLink);
+    expect(props.onOpenPrivacy).toHaveBeenCalledOnce();
+  });
+
+  it('positions Login one third of the way from the brand to the login actions', () => {
+    renderDialog();
+    expect(screen.getByRole('heading', { name: '选择登录方式' })).toHaveClass('mt-8');
+    expect(screen.getByRole('button', { name: '邮箱验证码登录' }).parentElement).toHaveClass('mt-16');
+  });
+
+  it('uses asymmetric panel padding to reduce space below the privacy link', () => {
+    renderDialog();
+    expect(screen.getByRole('dialog')).toHaveClass('pt-20', 'pb-4');
   });
 
   it('sends an OTP from the email step', async () => {
