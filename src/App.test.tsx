@@ -25,6 +25,19 @@ const mocks = vi.hoisted(() => ({
   createResource: vi.fn(),
   updateResource: vi.fn(),
   deleteResource: vi.fn(),
+  dailyCheckin: {
+    calendar: {
+      year: 2026, month: 9, leadingBlankCount: 2, days: [],
+      startDate: '2026-09-01', endDateExclusive: '2026-10-01',
+    },
+    loading: false,
+    submitting: false,
+    checkedToday: false,
+    error: null as unknown,
+    checkIn: vi.fn(async () => undefined),
+    retry: vi.fn(async () => undefined),
+  },
+  dailyCheckinArgs: [] as Array<[boolean, string | null]>,
 }));
 
 vi.mock('./hooks/useCatalog', () => ({
@@ -66,6 +79,13 @@ vi.mock('./hooks/useResourceActions', () => ({
   },
 }));
 
+vi.mock('./hooks/useDailyCheckin', () => ({
+  useDailyCheckin: (authenticated: boolean, userId: string | null) => {
+    mocks.dailyCheckinArgs.push([authenticated, userId]);
+    return mocks.dailyCheckin;
+  },
+}));
+
 import App from './App';
 
 describe('App catalog states', () => {
@@ -85,6 +105,12 @@ describe('App catalog states', () => {
     mocks.createResource.mockReset();
     mocks.updateResource.mockReset();
     mocks.deleteResource.mockReset();
+    mocks.dailyCheckin.checkedToday = false;
+    mocks.dailyCheckin.submitting = false;
+    mocks.dailyCheckin.error = null;
+    mocks.dailyCheckin.checkIn.mockClear();
+    mocks.dailyCheckin.retry.mockClear();
+    mocks.dailyCheckinArgs.length = 0;
   });
 
   it('shows catalog loading before rendering catalog pages', () => {
@@ -130,6 +156,21 @@ describe('App catalog states', () => {
 
     expect(mocks.spaceEnabled[mocks.spaceEnabled.length - 1]).toBe(true);
     expect(screen.getByRole('heading', { name: 'My dictionary' })).toBeInTheDocument();
+    expect(mocks.dailyCheckinArgs[mocks.dailyCheckinArgs.length - 1]).toEqual([true, 'user-1']);
+  });
+
+  it('connects the floating and Space check-in buttons to one shared action', async () => {
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    mocks.catalog.loading = false;
+    mocks.space.data = { recentHistory: [], sections: [] };
+    render(<MemoryRouter initialEntries={['/space']}><App /></MemoryRouter>);
+
+    const buttons = screen.getAllByRole('button', { name: /今日チェック|今日打卡/ });
+    expect(buttons).toHaveLength(2);
+    await userEvent.click(buttons[0]);
+    await userEvent.click(buttons[1]);
+
+    expect(mocks.dailyCheckin.checkIn).toHaveBeenCalledTimes(2);
   });
 
   it('provides a shared refresh for catalog and Space mutations', async () => {

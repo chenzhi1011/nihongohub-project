@@ -6,6 +6,8 @@ import { DeleteResourceDialog } from '../components/DeleteResourceDialog';
 import { HistoryRail } from '../components/HistoryRail';
 import { PrivateResourceDialog } from '../components/PrivateResourceDialog';
 import { ResourceCard } from '../components/ResourceCard';
+import { MonthlyCheckinCalendar } from '../components/MonthlyCheckinCalendar';
+import type { MonthlyCheckinCalendarModel } from '../service/dailyCheckinService';
 
 type Props = {
   authenticated: boolean;
@@ -23,6 +25,13 @@ type Props = {
   onCreateResource: (input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
   onUpdateResource: (resourceId: number, input: PrivateResourceInput, reviewed: boolean) => Promise<SavePrivateResourceResult>;
   onDeleteResource: (resourceId: number) => Promise<void>;
+  checkinCalendar: MonthlyCheckinCalendarModel;
+  checkinLoading: boolean;
+  checkinError: unknown;
+  checkedToday: boolean;
+  checkinSubmitting: boolean;
+  onCheckIn: () => void;
+  onRetryCheckins: () => void;
 };
 
 export function SpacePage({
@@ -41,6 +50,13 @@ export function SpacePage({
   onCreateResource,
   onUpdateResource,
   onDeleteResource,
+  checkinCalendar,
+  checkinLoading,
+  checkinError,
+  checkedToday,
+  checkinSubmitting,
+  onCheckIn,
+  onRetryCheckins,
 }: Props) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<ResourceRecord | null>(null);
@@ -85,17 +101,32 @@ export function SpacePage({
         <h1 className={`text-3xl font-bold ${textColor}`}>{t('space')}</h1>
         <AddResourceButton darkMode={darkMode} t={t} onClick={() => setCreateDialogOpen(true)} />
       </div>
+      <div
+        data-testid="space-checkin-history-row"
+        className={`mt-6 grid items-start gap-6 ${data.recentHistory.length > 0 ? 'lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(320px,380px)]'}`}
+      >
+        <MonthlyCheckinCalendar
+          calendar={checkinCalendar}
+          loading={checkinLoading}
+          error={checkinError}
+          checkedToday={checkedToday}
+          submitting={checkinSubmitting}
+          darkMode={darkMode}
+          t={t}
+          onCheckIn={onCheckIn}
+          onRetry={onRetryCheckins}
+        />
+        {data.recentHistory.length > 0 && (
+          <div className="min-w-0">
+            <p className={`mb-3 text-lg font-semibold ${textColor}`}>{t('recentHistory')}</p>
+            <HistoryRail items={data.recentHistory} darkMode={darkMode} t={t} onVisit={onVisit} />
+          </div>
+        )}
+      </div>
       {empty ? (
         <p className={`mt-4 ${mutedColor}`}>{t('spaceEmpty')}</p>
       ) : (
-        <div className="mt-6 space-y-10">
-          {data.recentHistory.length > 0 && (
-            <div>
-              <p className={`mb-3 text-lg font-semibold ${textColor}`}>{t('recentHistory')}</p>
-              <HistoryRail items={data.recentHistory} darkMode={darkMode} t={t} onVisit={onVisit} />
-            </div>
-          )}
-
+        <div className="mt-10 space-y-10">
           {data.sections.map((section) => {
             const metadata = categories.find((category) => category.id === section.category);
             if (!metadata) return null;

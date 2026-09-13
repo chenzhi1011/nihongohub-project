@@ -8,6 +8,7 @@ import { FeedbackFab } from './components/FeedbackFab';
 import { UpdateNotice } from './components/UpdateNotice';
 import { useHubApp } from './hooks/useHubApp';
 import { useCatalog } from './hooks/useCatalog';
+import { useDailyCheckin } from './hooks/useDailyCheckin';
 import { useResourceActions } from './hooks/useResourceActions';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useSpace } from './hooks/useSpace';
@@ -28,6 +29,7 @@ function App() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const catalog = useCatalog();
   const space = useSpace(Boolean(user));
+  const dailyCheckin = useDailyCheckin(Boolean(user), user?.id ?? null);
   const retryCatalog = catalog.retry;
   const retrySpace = space.retry;
   const lastCatalogIdentity = useRef<string | null>();
@@ -150,6 +152,13 @@ function App() {
             onCreateResource={resourceActions.createResource}
             onUpdateResource={resourceActions.updateResource}
             onDeleteResource={resourceActions.deleteResource}
+            checkinCalendar={dailyCheckin.calendar}
+            checkinLoading={dailyCheckin.loading}
+            checkinError={dailyCheckin.error}
+            checkedToday={dailyCheckin.checkedToday}
+            checkinSubmitting={dailyCheckin.submitting}
+            onCheckIn={() => void dailyCheckin.checkIn()}
+            onRetryCheckins={() => void dailyCheckin.retry()}
           />
         ) : catalog.loading ? (
           <p role="status" className={darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}>{t('catalogLoading')}</p>
@@ -206,7 +215,15 @@ function App() {
 
       <Footer darkMode={darkMode} t={t} />
       <Analytics />
-      <FeedbackFab darkMode={darkMode} t={t} />
+      <FeedbackFab
+        darkMode={darkMode}
+        t={t}
+        authenticated={Boolean(user)}
+        checkedToday={dailyCheckin.checkedToday}
+        checkinSubmitting={dailyCheckin.submitting}
+        onCheckIn={() => void dailyCheckin.checkIn()}
+        onLoginRequired={() => setAuthDialogOpen(true)}
+      />
     </div>
   );
 }

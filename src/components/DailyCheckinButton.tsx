@@ -29,7 +29,7 @@ export function DailyCheckinButton({ checked, submitting, compact, darkMode, t, 
             ? darkMode ? 'bg-[#466b5e]' : 'bg-[#568372]'
             : darkMode ? 'bg-[#2f6f5a] hover:bg-[#3a846c]' : 'bg-[#3b7d67] hover:bg-[#2f6f5a]'
         }`
-        : `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-default ${
+        : `inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:cursor-default ${
           checked
             ? darkMode ? 'bg-[#466b5e]' : 'bg-[#568372]'
             : darkMode ? 'bg-[#2f6f5a] hover:bg-[#3a846c]' : 'bg-[#3b7d67] hover:bg-[#2f6f5a]'

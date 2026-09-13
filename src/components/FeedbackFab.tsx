@@ -12,21 +12,21 @@ const FEEDBACK_COOLDOWN_MS = 180_000; // 3 minutes
 type Props = {
   darkMode: boolean;
   t: (key: string) => string;
-  authenticated?: boolean;
-  checkedToday?: boolean;
-  checkinSubmitting?: boolean;
-  onCheckIn?: () => void;
-  onLoginRequired?: () => void;
+  authenticated: boolean;
+  checkedToday: boolean;
+  checkinSubmitting: boolean;
+  onCheckIn: () => void;
+  onLoginRequired: () => void;
 };
 
 export function FeedbackFab({
   darkMode,
   t,
-  authenticated = false,
-  checkedToday = false,
-  checkinSubmitting = false,
-  onCheckIn = () => undefined,
-  onLoginRequired = () => undefined,
+  authenticated,
+  checkedToday,
+  checkinSubmitting,
+  onCheckIn,
+  onLoginRequired,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');

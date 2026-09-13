@@ -119,7 +119,21 @@ export const translations: TranslationMap = {
 
   // Daily check-in (FAB)
   dailyCheckInButton: { zh: '今日打卡', jp: '今日チェック' },
-  dailyCheckInDone: { zh: '已打卡', jp: 'チェック済み' },
+  dailyCheckInDone: { zh: '今日已打卡', jp: '本日チェック済み' },
+  dailyCheckInSubmitting: { zh: '打卡中…', jp: 'チェック中…' },
+  monthlyCheckinTitle: { zh: '{month}月打卡', jp: '{month}月のチェック' },
+  checkinCalendarLoading: { zh: '正在加载打卡记录…', jp: '学習記録を読み込んでいます…' },
+  checkinCalendarLoadFailed: { zh: '打卡记录加载失败。', jp: '学習記録を読み込めませんでした。' },
+  weekdaySun: { zh: '日', jp: '日' },
+  weekdayMon: { zh: '一', jp: '月' },
+  weekdayTue: { zh: '二', jp: '火' },
+  weekdayWed: { zh: '三', jp: '水' },
+  weekdayThu: { zh: '四', jp: '木' },
+  weekdayFri: { zh: '五', jp: '金' },
+  weekdaySat: { zh: '六', jp: '土' },
+  checked: { zh: '已打卡', jp: 'チェック済み' },
+  unchecked: { zh: '未打卡', jp: '未チェック' },
+  futureDate: { zh: '未来日期', jp: '未来の日付' },
 
   // Anti-spam feedback errors
   feedbackTooLongError: { zh: '意见过长，请控制在 1000 字符以内。', jp: 'ご意見が長すぎます。1000文字以内にしてください。' },

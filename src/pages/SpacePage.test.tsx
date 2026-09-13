@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { SpaceSnapshot } from '../types/resource';
+import { buildMonthlyCheckinCalendar } from '../service/dailyCheckinService';
 import { SpacePage } from './SpacePage';
 
 const t = (key: string) => ({
@@ -29,6 +30,13 @@ const t = (key: string) => ({
   deleteResourceQuestion: '确定要永久删除这个资源吗？',
   cancel: '取消',
   confirmDeleteResource: '确认删除',
+  monthlyCheckinTitle: '{month}月打卡',
+  dailyCheckInButton: '今日打卡',
+  dailyCheckInDone: '今日已打卡',
+  dailyCheckInSubmitting: '打卡中…',
+  weekdaySun: '日', weekdayMon: '一', weekdayTue: '二', weekdayWed: '三',
+  weekdayThu: '四', weekdayFri: '五', weekdaySat: '六',
+  checked: '已打卡', unchecked: '未打卡', futureDate: '未来日期',
 }[key] ?? key);
 
 const emptySnapshot: SpaceSnapshot = { recentHistory: [], sections: [] };
@@ -69,6 +77,13 @@ const renderSpace = (overrides: Partial<React.ComponentProps<typeof SpacePage>> 
     onCreateResource: vi.fn().mockResolvedValue({ status: 'saved', resourceId: 24 }),
     onUpdateResource: vi.fn().mockResolvedValue({ status: 'saved', resourceId: 22 }),
     onDeleteResource: vi.fn().mockResolvedValue(undefined),
+    checkinCalendar: buildMonthlyCheckinCalendar(new Date(2026, 8, 13), ['2026-09-03']),
+    checkinLoading: false,
+    checkinError: null,
+    checkedToday: false,
+    checkinSubmitting: false,
+    onCheckIn: vi.fn(),
+    onRetryCheckins: vi.fn(),
     ...overrides,
   };
   render(<SpacePage {...props} />);
@@ -101,7 +116,16 @@ describe('SpacePage states', () => {
 
   it('shows a genuine empty state after a successful empty snapshot', () => {
     renderSpace();
+    expect(screen.getByRole('heading', { name: '9月打卡' })).toBeInTheDocument();
     expect(screen.getByText('你的 Space 还是空的')).toBeInTheDocument();
+  });
+
+  it('checks in from the monthly record section', async () => {
+    const props = renderSpace();
+
+    await userEvent.click(screen.getByRole('button', { name: '今日打卡' }));
+
+    expect(props.onCheckIn).toHaveBeenCalledOnce();
   });
 
   it('opens private resource creation for an authenticated user', async () => {
@@ -131,7 +155,8 @@ describe('SpacePage states', () => {
 
     expect(screen.getByRole('region', { name: 'recentHistory' })).toBeInTheDocument();
     const sectionHeadings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(sectionHeadings).toEqual(['reading', 'tools']);
+    expect(sectionHeadings).toEqual(['9月打卡', 'reading', 'tools']);
+    expect(screen.getByTestId('space-checkin-history-row')).toHaveClass('lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]');
     expect(screen.getByRole('heading', { name: 'Marked public' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My private resource' })).toBeInTheDocument();
   });
