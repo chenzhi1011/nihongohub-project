@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      daily_checkins: {
+        Row: {
+          checked_at: string
+          checkin_date: string
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string
+          checkin_date: string
+          user_id: string
+        }
+        Update: {
+          checked_at?: string
+          checkin_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resource_categories: {
         Row: {
           category: Database["public"]["Enums"]["resource_category"]
@@ -134,6 +152,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_in_today: {
+        Args: { p_checkin_date: string }
+        Returns: string
+      }
       create_private_resource: {
         Args: {
           p_category: Database["public"]["Enums"]["resource_category"]
