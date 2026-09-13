@@ -6,10 +6,11 @@ import { AuthDialog } from './components/AuthDialog';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { FeedbackFab } from './components/FeedbackFab';
-import { UpdateNotice } from './components/UpdateNotice';
+import { SpaceLaunchAnnouncement } from './components/SpaceLaunchAnnouncement';
 import { useHubApp } from './hooks/useHubApp';
 import { useCatalog } from './hooks/useCatalog';
 import { useDailyCheckin } from './hooks/useDailyCheckin';
+import { useFeedback } from './hooks/useFeedback';
 import { useResourceActions } from './hooks/useResourceActions';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
 import { useSpace } from './hooks/useSpace';
@@ -82,6 +83,7 @@ function App() {
     categoryCounts,
     handleCategoryClick,
   } = useHubApp(catalog.data);
+  const feedback = useFeedback(t);
 
   const activeCategoryMetadata = categoryList.find((category) => category.id === activeCategory);
   const activeCategoryData = catalog.data.find((section) => section.category === activeCategory);
@@ -118,12 +120,13 @@ function App() {
         onGoogleLogin={signInWithGoogle}
         onOpenPrivacy={() => { setAuthDialogOpen(false); navigate('/privacy'); }}
       />
-
-      {activeCategory === 'home' && !privacyPageOpen && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <UpdateNotice darkMode={darkMode} language={language} />
-        </div>
-      )}
+      {!privacyPageOpen && <SpaceLaunchAnnouncement
+        authenticated={Boolean(user)}
+        authLoading={authLoading}
+        darkMode={darkMode}
+        t={t}
+        onLogin={() => setAuthDialogOpen(true)}
+      />}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {privacyPageOpen ? (
@@ -237,8 +240,12 @@ function App() {
         authenticated={Boolean(user)}
         checkedToday={dailyCheckin.checkedToday}
         checkinSubmitting={dailyCheckin.submitting}
+        feedbackSubmitting={feedback.submitting}
+        feedbackError={feedback.error}
         onCheckIn={() => void dailyCheckin.checkIn()}
         onLoginRequired={() => setAuthDialogOpen(true)}
+        onSubmitFeedback={feedback.submitFeedback}
+        onClearFeedbackState={feedback.clearFeedbackState}
       />}
     </div>
   );

@@ -147,15 +147,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feedback: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      check_in_today: {
-        Args: { p_checkin_date: string }
-        Returns: string
-      }
+      check_in_today: { Args: { p_checkin_date: string }; Returns: string }
       create_private_resource: {
         Args: {
           p_category: Database["public"]["Enums"]["resource_category"]
@@ -215,6 +233,7 @@ export type Database = {
         Returns: undefined
       }
       similar_resource_limit: { Args: never; Returns: number }
+      submit_feedback: { Args: { p_content: string }; Returns: string }
       update_private_resource: {
         Args: {
           p_category: Database["public"]["Enums"]["resource_category"]

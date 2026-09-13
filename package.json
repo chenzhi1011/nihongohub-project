@@ -15,6 +15,7 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:test:concurrency": "bash supabase/tests/concurrency/private_resource_limits.sh",
+    "db:test:feedback-concurrency": "bash supabase/tests/concurrency/feedback_limits.sh",
     "db:types": "node scripts/generate-database-types.mjs",
     "preview": "vite preview"
   },
