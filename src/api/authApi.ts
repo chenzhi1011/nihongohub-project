@@ -48,15 +48,26 @@ export function createAuthApi(client: AppSupabaseClient | null) {
       }
     },
 
-    async signInWithMagicLink(email: string, redirectTo: string): Promise<void> {
+    async sendEmailOtp(email: string): Promise<void> {
       const operationId = createOperationId();
       try {
         const { error } = await requireClient(client, operationId).auth.signInWithOtp({
           email,
-          options: {
-            emailRedirectTo: redirectTo,
-            shouldCreateUser: true,
-          },
+          options: { shouldCreateUser: true },
+        });
+        if (error) throw error;
+      } catch (error) {
+        throw toAppError(error, operationId);
+      }
+    },
+
+    async verifyEmailOtp(email: string, token: string): Promise<void> {
+      const operationId = createOperationId();
+      try {
+        const { error } = await requireClient(client, operationId).auth.verifyOtp({
+          email,
+          token,
+          type: 'email',
         });
         if (error) throw error;
       } catch (error) {
@@ -81,5 +92,6 @@ const authApi = createAuthApi(supabase);
 export const getCurrentUser = authApi.getCurrentUser;
 export const subscribeToAuthState = authApi.subscribeToAuthState;
 export const signInWithGoogle = authApi.signInWithGoogle;
-export const signInWithMagicLink = authApi.signInWithMagicLink;
+export const sendEmailOtp = authApi.sendEmailOtp;
+export const verifyEmailOtp = authApi.verifyEmailOtp;
 export const signOut = authApi.signOut;
