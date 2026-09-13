@@ -13,6 +13,12 @@ describe('toAppError', () => {
     expect(error.message).not.toContain('Failed to fetch');
   });
 
+  it('maps an invalid check-in date without exposing the database message', () => {
+    const error = toAppError({ code: 'P0001', message: 'INVALID_CHECKIN_DATE' }, 'op-date');
+    expect(error).toMatchObject({ code: 'VALIDATION_ERROR', operationId: 'op-date', retryable: false });
+    expect(error.message).not.toContain('INVALID_CHECKIN_DATE');
+  });
+
   it('preserves an existing AppError', () => {
     const first = toAppError({ message: 'RESOURCE_NOT_VISIBLE' }, 'op-3');
     expect(toAppError(first, 'different')).toBe(first);
