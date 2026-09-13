@@ -11,6 +11,7 @@ export type ErrorEventContext = {
   durationMs?: number;
   resourceId?: ResourceId;
   category?: ResourceCategory;
+  checkinDate?: string;
   sessionTraceId?: string;
 };
 
