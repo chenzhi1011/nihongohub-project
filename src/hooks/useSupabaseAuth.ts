@@ -1,75 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { AppError } from '../errors/appError';
-import { reportError } from '../observability/errorReporter';
-import {
-  getCurrentUser,
-  sendEmailOtp as startEmailOtp,
-  signInWithGoogle as startGoogleLogin,
-  signOut as endSession,
-  subscribeToAuthState,
-  verifyEmailOtp as confirmEmailOtp,
-} from '../api/authApi';
-
-export type AuthDependencies = {
-  getCurrentUser: typeof getCurrentUser;
-  subscribeToAuthState: typeof subscribeToAuthState;
-  signInWithGoogle: typeof startGoogleLogin;
-  sendEmailOtp: typeof startEmailOtp;
-  verifyEmailOtp: typeof confirmEmailOtp;
-  signOut: typeof endSession;
-};
+import { supabase } from '../api/supabaseClient';
 
 type AuthState = {
   user: User | null;
   loading: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<void>;
-  sendEmailOtp: (email: string) => Promise<void>;
-  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signInWithWeChat: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
-const defaultDependencies: AuthDependencies = {
-  getCurrentUser,
-  subscribeToAuthState,
-  signInWithGoogle: startGoogleLogin,
-  sendEmailOtp: startEmailOtp,
-  verifyEmailOtp: confirmEmailOtp,
-  signOut: endSession,
-};
-
-function reportAuthError(error: unknown, event: string): void {
-  if (!(error instanceof AppError)) return;
-  const mode = import.meta.env.MODE;
-  reportError(error, {
-    event,
-    layer: 'hook',
-    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ?? 'local',
-    environment: mode === 'production' ? 'production' : mode === 'preview' ? 'preview' : 'development',
-  });
-}
-
-function isRateLimitError(error: unknown): boolean {
-  if (!(error instanceof AppError) || typeof error.cause !== 'object' || error.cause === null) return false;
-  return 'status' in error.cause && error.cause.status === 429;
-}
-
-export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependencies): AuthState {
+export function useSupabaseAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
+    let unsub: { data: { subscription: { unsubscribe: () => void } } } | null = null;
 
     async function init() {
       try {
-        setUser(await dependencies.getCurrentUser());
-        unsubscribe = dependencies.subscribeToAuthState(setUser);
-      } catch {
-        setError('登录状态加载失败，请刷新页面重试。');
+        if (!supabase) {
+          setError('缺少 Supabase 配置（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）。');
+          setUser(null);
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        setUser(data.session?.user ?? null);
+
+        unsub = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null);
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Auth 初始化失败');
       } finally {
         setLoading(false);
       }
@@ -79,12 +44,12 @@ export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependen
 
     return () => {
       try {
-        unsubscribe?.();
+        if (unsub?.data.subscription) unsub.data.subscription.unsubscribe();
       } catch {
         // ignore
       }
     };
-  }, [dependencies]);
+  }, []);
 
   const redirectTo = useMemo(() => {
     // Supabase OAuth 回调后会在当前域名恢复 session
@@ -92,48 +57,42 @@ export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependen
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    if (!supabase) return;
     setError(null);
-    try {
-      await dependencies.signInWithGoogle(redirectTo);
-    } catch {
-      setError('Google 登录暂时失败，请重试。');
-    }
-  }, [dependencies, redirectTo]);
-
-  const sendEmailOtp = useCallback(async (email: string) => {
-    setError(null);
-    try {
-      await dependencies.sendEmailOtp(email.trim());
-    } catch (error) {
-      setError(isRateLimitError(error) ? '发送过于频繁，请稍后再试。' : '验证码发送失败，请稍后重试。');
-      reportAuthError(error, 'auth.email_otp.send.failed');
-      throw error;
-    }
-  }, [dependencies]);
-
-  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
-    setError(null);
-    try {
-      await dependencies.verifyEmailOtp(email, token);
-    } catch (error) {
-      setError('验证码无效或已过期，请重新输入。');
-      reportAuthError(error, 'auth.email_otp.verify.failed');
-      throw error;
-    }
-  }, [dependencies]);
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+  }, [redirectTo]);
 
   const signInWithWeChat = useCallback(async () => {
-    setError('微信登录将在后续版本开放，请先使用 Google 登录。');
-  }, []);
+    if (!supabase) return;
+    setError(null);
+
+    // Supabase WeChat provider 可能是 `weixin` 或 `wechat`，这里做一次兜底
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'weixin',
+        options: { redirectTo },
+      });
+    } catch (e) {
+      try {
+        await supabase.auth.signInWithOAuth({
+          provider: 'wechat',
+          options: { redirectTo },
+        });
+      } catch (e2) {
+        setError(e2 instanceof Error ? e2.message : '微信登录失败');
+      }
+    }
+  }, [redirectTo]);
 
   const signOut = useCallback(async () => {
+    if (!supabase) return;
     setError(null);
-    try {
-      await dependencies.signOut();
-    } catch {
-      setError('退出失败，请重试。');
-    }
-  }, [dependencies]);
+    await supabase.auth.signOut();
+  }, []);
 
-  return { user, loading, error, signInWithGoogle, sendEmailOtp, verifyEmailOtp, signInWithWeChat, signOut };
+  return { user, loading, error, signInWithGoogle, signInWithWeChat, signOut };
 }
+
