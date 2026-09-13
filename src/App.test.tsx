@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   auth: {
     user: null as null | { id: string; email: string },
     loading: false,
+    sendEmailOtp: vi.fn(async () => undefined),
+    verifyEmailOtp: vi.fn(async () => undefined),
+    signInWithGoogle: vi.fn(async () => undefined),
   },
   space: {
     data: null as null | { recentHistory: never[]; sections: Array<{ category: 'tools'; resources: Array<Record<string, unknown>> }> },
@@ -49,8 +52,9 @@ vi.mock('./hooks/useSupabaseAuth', () => ({
     user: mocks.auth.user,
     loading: mocks.auth.loading,
     error: null,
-    signInWithGoogle: vi.fn(),
-    signInWithEmail: vi.fn(),
+    signInWithGoogle: mocks.auth.signInWithGoogle,
+    sendEmailOtp: mocks.auth.sendEmailOtp,
+    verifyEmailOtp: mocks.auth.verifyEmailOtp,
     signInWithWeChat: vi.fn(),
     signOut: vi.fn(),
   }),
@@ -96,6 +100,9 @@ describe('App catalog states', () => {
     mocks.catalog.retry.mockClear();
     mocks.auth.user = null;
     mocks.auth.loading = false;
+    mocks.auth.sendEmailOtp.mockClear();
+    mocks.auth.verifyEmailOtp.mockClear();
+    mocks.auth.signInWithGoogle.mockClear();
     mocks.space.data = null;
     mocks.space.loading = false;
     mocks.space.error = null;
@@ -136,6 +143,26 @@ describe('App catalog states', () => {
 
     expect(mocks.spaceEnabled[mocks.spaceEnabled.length - 1]).toBe(false);
     expect(screen.getByText(/先にログイン|请先登录/)).toBeInTheDocument();
+  });
+
+  it('wires email OTP actions and closes the dialog after authentication', async () => {
+    mocks.catalog.loading = false;
+    const view = render(<MemoryRouter><App /></MemoryRouter>);
+
+    const spaceButtons = screen.getAllByRole('button', { name: /マイスペース|我的 Space/ });
+    await userEvent.click(spaceButtons[0]);
+    await userEvent.click(screen.getByRole('button', { name: /メール認証コードでログイン|邮箱验证码登录/ }));
+    await userEvent.type(screen.getByRole('textbox', { name: /メールアドレス|邮箱地址/ }), 'learner@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /認証コードを送信|发送验证码/ }));
+    await userEvent.type(screen.getByRole('textbox', { name: /6桁の認証コード|6 位验证码/ }), '123456');
+    await userEvent.click(screen.getByRole('button', { name: /認証してログイン|验证并登录/ }));
+
+    expect(mocks.auth.sendEmailOtp).toHaveBeenCalledWith('learner@example.com');
+    expect(mocks.auth.verifyEmailOtp).toHaveBeenCalledWith('learner@example.com', '123456');
+
+    mocks.auth.user = { id: 'user-1', email: 'learner@example.com' };
+    view.rerender(<MemoryRouter><App /></MemoryRouter>);
+    expect(screen.queryByRole('dialog', { name: /メール認証コードでログイン|邮箱验证码登录/ })).not.toBeInTheDocument();
   });
 
   it('renders an authenticated Space snapshot', () => {

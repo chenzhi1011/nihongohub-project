@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { AppError } from '../errors/appError';
 import type { AuthDependencies } from './useSupabaseAuth';
 import { useSupabaseAuth } from './useSupabaseAuth';
 
@@ -58,5 +59,20 @@ describe('useSupabaseAuth email OTP', () => {
       await expect(result.current.verifyEmailOtp('learner@example.com', '000000')).rejects.toBe(failure);
     });
     expect(result.current.error).toBe('验证码无效或已过期，请重新输入。');
+  });
+
+  it('distinguishes the server-side email rate limit', async () => {
+    const failure = new AppError({
+      code: 'UNKNOWN', operationId: 'otp-rate-limit', retryable: false,
+      message: 'operation failed', cause: { status: 429 },
+    });
+    const dependencies = createDependencies({ sendEmailOtp: vi.fn().mockRejectedValue(failure) });
+    const { result } = renderHook(() => useSupabaseAuth(dependencies));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.sendEmailOtp('learner@example.com')).rejects.toBe(failure);
+    });
+    expect(result.current.error).toBe('发送过于频繁，请稍后再试。');
   });
 });

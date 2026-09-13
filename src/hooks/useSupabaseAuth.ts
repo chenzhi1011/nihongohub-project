@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { AppError } from '../errors/appError';
+import { reportError } from '../observability/errorReporter';
 import {
   getCurrentUser,
   sendEmailOtp as startEmailOtp,
@@ -37,6 +39,22 @@ const defaultDependencies: AuthDependencies = {
   verifyEmailOtp: confirmEmailOtp,
   signOut: endSession,
 };
+
+function reportAuthError(error: unknown, event: string): void {
+  if (!(error instanceof AppError)) return;
+  const mode = import.meta.env.MODE;
+  reportError(error, {
+    event,
+    layer: 'hook',
+    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ?? 'local',
+    environment: mode === 'production' ? 'production' : mode === 'preview' ? 'preview' : 'development',
+  });
+}
+
+function isRateLimitError(error: unknown): boolean {
+  if (!(error instanceof AppError) || typeof error.cause !== 'object' || error.cause === null) return false;
+  return 'status' in error.cause && error.cause.status === 429;
+}
 
 export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependencies): AuthState {
   const [user, setUser] = useState<User | null>(null);
@@ -87,7 +105,8 @@ export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependen
     try {
       await dependencies.sendEmailOtp(email.trim());
     } catch (error) {
-      setError('验证码发送失败，请稍后重试。');
+      setError(isRateLimitError(error) ? '发送过于频繁，请稍后再试。' : '验证码发送失败，请稍后重试。');
+      reportAuthError(error, 'auth.email_otp.send.failed');
       throw error;
     }
   }, [dependencies]);
@@ -98,6 +117,7 @@ export function useSupabaseAuth(dependencies: AuthDependencies = defaultDependen
       await dependencies.verifyEmailOtp(email, token);
     } catch (error) {
       setError('验证码无效或已过期，请重新输入。');
+      reportAuthError(error, 'auth.email_otp.verify.failed');
       throw error;
     }
   }, [dependencies]);

@@ -23,7 +23,8 @@ function App() {
     loading: authLoading,
     error: authError,
     signInWithGoogle,
-    signInWithEmail,
+    sendEmailOtp,
+    verifyEmailOtp,
     signOut,
   } = useSupabaseAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -33,6 +34,10 @@ function App() {
   const retryCatalog = catalog.retry;
   const retrySpace = space.retry;
   const lastCatalogIdentity = useRef<string | null>();
+
+  useEffect(() => {
+    if (user) setAuthDialogOpen(false);
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -103,7 +108,8 @@ function App() {
         error={authError}
         t={t}
         onClose={() => setAuthDialogOpen(false)}
-        onEmailLogin={signInWithEmail}
+        onSendEmailOtp={sendEmailOtp}
+        onVerifyEmailOtp={verifyEmailOtp}
         onGoogleLogin={signInWithGoogle}
       />
 
