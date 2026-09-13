@@ -1,23 +1,61 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { searchVisibleCatalog } from '../api/resourceCatalogApi';
-import { categories, todaysPhrases, translations } from '../data';
+import * as catalogDataApi from '../api/catalogApi';
 import {
   makeTranslator,
   pickRandomPhrase,
   resolveActiveCategoryId,
+  searchResources,
 } from '../service/catalogService';
 import type { Language, TodaysPhrase } from '../data/types';
-import type { CategoryCatalog } from '../types/resource';
+import type { Resource } from '../data/types';
+import { fetchUserResourcesByCategoryId, insertUserResource, type UserResourcesByCategoryId } from '../api/userDataApi';
+import { saveUserResourcesByCategoryId } from '../service/userResourcesService';
 
-export function useHubApp(catalog: CategoryCatalog[] = []) {
+export function useHubApp({ userId }: { userId: string | null }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const categoryList = categories;
-  const categoryCounts = useMemo(() => Object.fromEntries(
-    catalog.map((section) => [section.category, section.totalCount]),
-  ), [catalog]);
+  const baseCategoryList = useMemo(() => catalogDataApi.fetchCategories(), []);
+  const translationMap = useMemo(() => catalogDataApi.fetchTranslations(), []);
+
+  const [userResourcesByCategoryId, setUserResourcesByCategoryId] = useState<UserResourcesByCategoryId>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!userId) {
+        setUserResourcesByCategoryId({});
+        return;
+      }
+      const data = await fetchUserResourcesByCategoryId(userId);
+      if (!cancelled) setUserResourcesByCategoryId(data);
+    }
+
+    run().catch(() => {
+      // 获取失败时保持空的 user resources，让页面至少可用
+      if (!cancelled) setUserResourcesByCategoryId({});
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const categoryList = useMemo(() => {
+    return baseCategoryList.map((category) => {
+      const userResources = userResourcesByCategoryId[category.id] ?? [];
+      return {
+        ...category,
+        resources: [...category.resources, ...userResources],
+      };
+    });
+  }, [baseCategoryList, userResourcesByCategoryId]);
+
+  useEffect(() => {
+    saveUserResourcesByCategoryId(userResourcesByCategoryId);
+  }, [userResourcesByCategoryId]);
 
   const [activeCategory, setActiveCategory] = useState(() =>
     resolveActiveCategoryId(location.pathname, categoryList),
@@ -27,21 +65,18 @@ export function useHubApp(catalog: CategoryCatalog[] = []) {
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState<Language>('jp');
   const [todaysPhrase] = useState<TodaysPhrase>(() =>
-    pickRandomPhrase(todaysPhrases),
+    pickRandomPhrase(catalogDataApi.fetchTodaysPhrasePool()),
   );
 
   useEffect(() => {
     setActiveCategory(resolveActiveCategoryId(location.pathname, categoryList));
   }, [location.pathname, categoryList]);
 
-  const t = useMemo(() => makeTranslator(translations, language), [language]);
+  const t = useMemo(() => makeTranslator(translationMap, language), [translationMap, language]);
 
   const filteredResources = useMemo(
-    () => searchVisibleCatalog(searchQuery, catalog).map((resource) => ({
-      ...resource,
-      categoryName: t(categoryList.find((category) => category.id === resource.category)?.nameKey ?? resource.category),
-    })),
-    [searchQuery, catalog, categoryList, t],
+    () => searchResources(searchQuery, categoryList, (key) => t(key)),
+    [searchQuery, categoryList, t],
   );
 
   const handleCategoryClick = useCallback(
@@ -54,9 +89,23 @@ export function useHubApp(catalog: CategoryCatalog[] = []) {
     [navigate],
   );
 
+  const addUserResource = useCallback(
+    async (categoryId: string, resource: Resource) => {
+      if (!userId) return;
+      await insertUserResource({
+        userId,
+        categoryId,
+        resource,
+        isPrivate: true,
+      });
+      const refreshed = await fetchUserResourcesByCategoryId(userId);
+      setUserResourcesByCategoryId(refreshed);
+    },
+    [userId],
+  );
+
   return {
     categoryList,
-    categoryCounts,
     activeCategory,
     searchQuery,
     setSearchQuery,
@@ -70,5 +119,6 @@ export function useHubApp(catalog: CategoryCatalog[] = []) {
     t,
     filteredResources,
     handleCategoryClick,
+    addUserResource,
   };
 }
