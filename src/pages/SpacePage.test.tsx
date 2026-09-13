@@ -30,7 +30,11 @@ const t = (key: string) => ({
   deleteResourceQuestion: '确定要永久删除这个资源吗？',
   cancel: '取消',
   confirmDeleteResource: '确认删除',
-  monthlyCheckinTitle: '{month}月打卡',
+  learningCheckin: '学习打卡',
+  checkinMonthLabel: '{month}月',
+  myResources: '我的资源',
+  noBrowsingHistory: '还没有浏览记录',
+  recentHistory: '浏览历史',
   dailyCheckInButton: '今日打卡',
   dailyCheckInDone: '今日已打卡',
   dailyCheckInSubmitting: '打卡中…',
@@ -116,7 +120,10 @@ describe('SpacePage states', () => {
 
   it('shows a genuine empty state after a successful empty snapshot', () => {
     renderSpace();
-    expect(screen.getByRole('heading', { name: '9月打卡' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '学习打卡' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '浏览历史' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '我的资源' })).toBeInTheDocument();
+    expect(screen.getByTestId('browsing-history-panel')).toHaveTextContent('还没有浏览记录');
     expect(screen.getByText('你的 Space 还是空的')).toBeInTheDocument();
   });
 
@@ -147,16 +154,27 @@ describe('SpacePage states', () => {
       data: {
         recentHistory: [{ resource: publicResource, visitCount: 2, lastVisitedAt: '2026-09-07T03:00:00Z' }],
         sections: [
+          { category: 'weekly', resources: [{ ...publicResource, id: 20, category: 'weekly', name: 'Weekly marked resource' }] },
           { category: 'reading', resources: [publicResource, privateResource] },
           { category: 'tools', resources: [{ ...privateResource, id: 23, category: 'tools', name: 'Tool resource' }] },
         ],
       },
     });
 
-    expect(screen.getByRole('region', { name: 'recentHistory' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '浏览历史' })).toBeInTheDocument();
     const sectionHeadings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(sectionHeadings).toEqual(['9月打卡', 'reading', 'tools']);
-    expect(screen.getByTestId('space-checkin-history-row')).toHaveClass('lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]');
+    expect(sectionHeadings).toEqual(['学习打卡', '浏览历史', '我的资源']);
+    expect(screen.getByRole('heading', { name: '9月', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'reading', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'tools', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Weekly marked resource' })).toBeInTheDocument();
+    expect(screen.getByTestId('space-checkin-history-row')).toHaveClass(
+      'lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]',
+      'lg:items-stretch',
+    );
+    expect(screen.getByTestId('checkin-column')).toHaveClass('lg:flex', 'lg:flex-col');
+    expect(screen.getByTestId('history-column')).toHaveClass('lg:flex', 'lg:flex-col');
+    expect(screen.getByTestId('browsing-history-panel')).toHaveClass('rounded-xl', 'border', 'lg:flex-1');
     expect(screen.getByRole('heading', { name: 'Marked public' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My private resource' })).toBeInTheDocument();
   });

@@ -136,14 +136,15 @@ export function Header({
                 <button
                   type="button"
                   onClick={() => void onSignOut()}
-                  className={`flex shrink-0 items-center space-x-2 whitespace-nowrap px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  aria-label={t('logout')}
+                  title={t('logout')}
+                  className={`flex shrink-0 items-center justify-center rounded-lg p-2 transition-colors ${
                     darkMode
                       ? 'bg-[#3a3128] text-[#d8c4ad] hover:bg-[#4a3e31] hover:text-[#fff0dc]'
                       : 'bg-[#efe1ce] text-[#6b5845] hover:bg-[#e7d5bd] hover:text-[#3f3022]'
                   }`}
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="max-w-[90px] truncate">{t('logout')}</span>
+                  <LogOut aria-hidden="true" className="h-4 w-4" />
                 </button>
               </div>
             ) : (
@@ -213,7 +214,7 @@ export function Header({
                   ...
                 </div>
               ) : userEmail ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                   <button
                     type="button"
                     onClick={onOpenSpace}
@@ -229,14 +230,15 @@ export function Header({
                   <button
                     type="button"
                     onClick={() => void onSignOut()}
-                    className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    aria-label={t('logout')}
+                    title={t('logout')}
+                    className={`flex items-center justify-center rounded-lg p-3 transition-colors ${
                       darkMode
                         ? 'bg-[#3a3128] text-[#d8c4ad] hover:bg-[#4a3e31] hover:text-[#fff0dc]'
                         : 'bg-[#efe1ce] text-[#6b5845] hover:bg-[#e7d5bd] hover:text-[#3f3022]'
                     }`}
                   >
-                    <LogOut className="h-4 w-4" />
-                    <span>{t('logout')}</span>
+                    <LogOut aria-hidden="true" className="h-4 w-4" />
                   </button>
                 </div>
               ) : (

@@ -93,7 +93,14 @@ export function SpacePage({
     );
   }
 
-  const empty = data.recentHistory.length === 0 && data.sections.length === 0;
+  const visibleSections = data.sections.flatMap((section) => {
+    const metadata = categories.find((category) => category.id === section.category);
+    if (!metadata) return [];
+    const resources = section.resources.filter((resource) => (
+      resource.source === 'private' || resolveMarked(resource.id, resource.marked)
+    ));
+    return resources.length > 0 ? [{ ...section, metadata, resources }] : [];
+  });
 
   return (
     <section>
@@ -103,49 +110,57 @@ export function SpacePage({
       </div>
       <div
         data-testid="space-checkin-history-row"
-        className={`mt-6 grid items-start gap-6 ${data.recentHistory.length > 0 ? 'lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(320px,380px)]'}`}
+        className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:items-stretch"
       >
-        <MonthlyCheckinCalendar
-          calendar={checkinCalendar}
-          loading={checkinLoading}
-          error={checkinError}
-          checkedToday={checkedToday}
-          submitting={checkinSubmitting}
-          darkMode={darkMode}
-          t={t}
-          onCheckIn={onCheckIn}
-          onRetry={onRetryCheckins}
-        />
-        {data.recentHistory.length > 0 && (
-          <div className="min-w-0">
-            <p className={`mb-3 text-lg font-semibold ${textColor}`}>{t('recentHistory')}</p>
+        <div data-testid="checkin-column" className="min-w-0 lg:flex lg:flex-col">
+          <h2 className={`mb-3 text-lg font-semibold ${textColor}`}>{t('learningCheckin')}</h2>
+          <MonthlyCheckinCalendar
+            calendar={checkinCalendar}
+            loading={checkinLoading}
+            error={checkinError}
+            checkedToday={checkedToday}
+            submitting={checkinSubmitting}
+            darkMode={darkMode}
+            t={t}
+            onCheckIn={onCheckIn}
+            onRetry={onRetryCheckins}
+          />
+        </div>
+        <div data-testid="history-column" className="min-w-0 lg:flex lg:flex-col">
+          <h2 className={`mb-3 text-lg font-semibold ${textColor}`}>{t('recentHistory')}</h2>
+          <div
+            data-testid="browsing-history-panel"
+            className={`rounded-xl border p-4 lg:flex-1 ${data.recentHistory.length === 0 ? 'flex min-h-40 items-center justify-center lg:min-h-0' : ''} ${darkMode ? 'border-[#4a3f33] bg-[#2a241d]' : 'border-[#d8c8ae] bg-[#fff8ec]'}`}
+          >
+            {data.recentHistory.length > 0 ? (
             <HistoryRail items={data.recentHistory} darkMode={darkMode} t={t} onVisit={onVisit} />
+            ) : (
+              <p className={`text-sm ${mutedColor}`}>
+                {t('noBrowsingHistory')}
+              </p>
+            )}
           </div>
-        )}
+        </div>
       </div>
-      {empty ? (
+      <h2 className={`mt-10 text-lg font-semibold ${textColor}`}>{t('myResources')}</h2>
+      {visibleSections.length === 0 ? (
         <p className={`mt-4 ${mutedColor}`}>{t('spaceEmpty')}</p>
       ) : (
-        <div className="mt-10 space-y-10">
-          {data.sections.map((section) => {
-            const metadata = categories.find((category) => category.id === section.category);
-            if (!metadata) return null;
-            const visibleResources = section.resources.filter((resource) => (
-              resource.source === 'private' || resolveMarked(resource.id, resource.marked)
-            ));
-            if (visibleResources.length === 0) return null;
+        <div className="mt-6 space-y-10">
+          {visibleSections.map((section) => {
+            const { metadata } = section;
             const Icon = metadata.icon;
 
             return (
               <section key={section.category} aria-labelledby={`space-section-${section.category}`}>
                 <div className="mb-4 flex items-center gap-3">
                   <Icon className={`h-6 w-6 ${darkMode ? 'text-[#f0a36b]' : 'text-[#b3572a]'}`} />
-                  <h2 id={`space-section-${section.category}`} className={`text-2xl font-semibold ${textColor}`}>
+                  <h3 id={`space-section-${section.category}`} className={`text-2xl font-semibold ${textColor}`}>
                     {t(metadata.nameKey)}
-                  </h2>
+                  </h3>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {visibleResources.map((resource) => {
+                  {section.resources.map((resource) => {
                     const marked = resource.source === 'public'
                       ? resolveMarked(resource.id, resource.marked)
                       : false;

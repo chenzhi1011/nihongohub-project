@@ -32,12 +32,12 @@ export function MonthlyCheckinCalendar({
 }: Props) {
   const textColor = darkMode ? 'text-[#f5ead8]' : 'text-[#2f2218]';
   const mutedColor = darkMode ? 'text-[#a89881]' : 'text-[#8f7f69]';
-  const title = t('monthlyCheckinTitle').replace('{month}', String(calendar.month));
+  const title = t('checkinMonthLabel').replace('{month}', String(calendar.month));
 
   return (
     <section className={`w-full max-w-[380px] rounded-xl border p-4 ${darkMode ? 'border-[#4a3f33] bg-[#2a241d]' : 'border-[#d8c8ae] bg-[#fff8ec]'}`}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className={`text-lg font-semibold ${textColor}`}>{title}</h2>
+        <h3 className={`text-lg font-semibold ${textColor}`}>{title}</h3>
         <DailyCheckinButton checked={checkedToday} submitting={submitting} compact={false} darkMode={darkMode} t={t} onClick={onCheckIn} />
       </div>
 

@@ -67,7 +67,12 @@ describe('Header authentication actions', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: '我的 Space' }));
-    await userEvent.click(screen.getByRole('button', { name: /退出/ }));
+    const logoutButtons = screen.getAllByRole('button', { name: '退出' });
+    logoutButtons.forEach((button) => {
+      expect(button).toHaveAttribute('title', '退出');
+      expect(button).toHaveTextContent(/^$/);
+    });
+    await userEvent.click(logoutButtons[0]);
 
     expect(onOpenSpace).toHaveBeenCalledOnce();
     expect(onSignOut).toHaveBeenCalledOnce();

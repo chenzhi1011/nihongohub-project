@@ -5,7 +5,7 @@ import { buildMonthlyCheckinCalendar } from '../service/dailyCheckinService';
 import { MonthlyCheckinCalendar } from './MonthlyCheckinCalendar';
 
 const t = (key: string) => ({
-  monthlyCheckinTitle: '{month}月打卡',
+  checkinMonthLabel: '{month}月',
   dailyCheckInButton: '今日打卡',
   dailyCheckInDone: '今日已打卡',
   dailyCheckInSubmitting: '打卡中…',
@@ -25,7 +25,7 @@ describe('MonthlyCheckinCalendar', () => {
   it('renders the whole month and marks checked dates with accessible labels', () => {
     render(<MonthlyCheckinCalendar calendar={calendar} loading={false} error={null} checkedToday darkMode={false} t={t} submitting={false} onCheckIn={vi.fn()} onRetry={vi.fn()} />);
 
-    const heading = screen.getByRole('heading', { name: '9月打卡' });
+    const heading = screen.getByRole('heading', { name: '9月', level: 3 });
     expect(heading.closest('section')).toHaveClass('max-w-[380px]');
     expect(screen.getByLabelText('2026-09-03，已打卡')).toHaveTextContent('✓');
     expect(screen.getByLabelText('2026-09-03，已打卡')).not.toHaveTextContent('3');
@@ -47,7 +47,7 @@ describe('MonthlyCheckinCalendar', () => {
     render(<MonthlyCheckinCalendar calendar={calendar} loading={false} error={new Error('offline')} checkedToday={false} darkMode={false} t={t} submitting={false} onCheckIn={vi.fn()} onRetry={onRetry} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('打卡记录加载失败');
-    expect(screen.getByRole('heading', { name: '9月打卡' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '9月', level: 3 })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
