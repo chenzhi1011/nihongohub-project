@@ -1,7 +1,8 @@
-import type { Category, Language, TodaysPhrase } from '../data/types';
+import type { CategoryMetadata, Language, TodaysPhrase } from '../data/types';
 
 type Props = {
-  categories: Category[];
+  categories: CategoryMetadata[];
+  categoryCounts: Readonly<Record<string, number>>;
   darkMode: boolean;
   language: Language;
   todaysPhrase: TodaysPhrase;
@@ -9,7 +10,7 @@ type Props = {
   t: (key: string) => string;
 };
 
-export function HomePage({ categories, darkMode, language, todaysPhrase, onCategoryClick, t }: Props) {
+export function HomePage({ categories, categoryCounts, darkMode, language, todaysPhrase, onCategoryClick, t }: Props) {
   return (
     <div className="space-y-8">
       <div className="text-center">
@@ -79,7 +80,7 @@ export function HomePage({ categories, darkMode, language, todaysPhrase, onCateg
                 </h3>
               </div>
               <p className={`text-sm ${darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}`}>
-                {category.resources.length} {t('resourcesAvailable')}
+                {categoryCounts[category.id] ?? 0} {t('resourcesAvailable')}
               </p>
             </button>
           );

@@ -1,23 +1,68 @@
 import { Search } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AuthDialog } from './components/AuthDialog';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { FeedbackFab } from './components/FeedbackFab';
 import { UpdateNotice } from './components/UpdateNotice';
 import { useHubApp } from './hooks/useHubApp';
+import { useCatalog } from './hooks/useCatalog';
+import { useDailyCheckin } from './hooks/useDailyCheckin';
+import { useResourceActions } from './hooks/useResourceActions';
 import { useSupabaseAuth } from './hooks/useSupabaseAuth';
+import { useSpace } from './hooks/useSpace';
 import { CategoryPage } from './pages/CategoryPage';
 import { HomePage } from './pages/HomePage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { SearchResults } from './pages/SearchResults';
+import { SpacePage } from './pages/SpacePage';
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const privacyPageOpen = location.pathname === '/privacy';
   const {
     user,
     loading: authLoading,
+    error: authError,
+    signInWithGoogle,
+    sendEmailOtp,
+    verifyEmailOtp,
     signOut,
   } = useSupabaseAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const catalog = useCatalog();
+  const space = useSpace(Boolean(user));
+  const dailyCheckin = useDailyCheckin(Boolean(user), user?.id ?? null);
+  const retryCatalog = catalog.retry;
+  const retrySpace = space.retry;
+  const lastCatalogIdentity = useRef<string | null>();
 
-  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (user) setAuthDialogOpen(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const identity = user?.id ?? null;
+    if (lastCatalogIdentity.current === undefined) {
+      lastCatalogIdentity.current = identity;
+      return;
+    }
+    if (lastCatalogIdentity.current !== identity) {
+      lastCatalogIdentity.current = identity;
+      void retryCatalog();
+    }
+  }, [authLoading, retryCatalog, user?.id]);
+
+  const refreshResources = useCallback(async () => {
+    await Promise.all([retryCatalog(), retrySpace()]);
+  }, [retryCatalog, retrySpace]);
+  const resourceActionDependencies = useMemo(() => ({ refreshSpace: refreshResources }), [refreshResources]);
+  const resourceActions = useResourceActions(resourceActionDependencies);
+
   const userEmail = user?.email ?? null;
 
   const {
@@ -34,10 +79,12 @@ function App() {
     todaysPhrase,
     t,
     filteredResources,
+    categoryCounts,
     handleCategoryClick,
-  } = useHubApp({ userId });
+  } = useHubApp(catalog.data);
 
-  const activeCategoryData = categoryList.find((c) => c.id === activeCategory);
+  const activeCategoryMetadata = categoryList.find((category) => category.id === activeCategory);
+  const activeCategoryData = catalog.data.find((section) => section.category === activeCategory);
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-[#1f1b16]' : 'bg-[#f7f1e6]'}`}>
@@ -55,17 +102,34 @@ function App() {
         t={t}
         userEmail={userEmail}
         authLoading={authLoading}
+        onOpenLogin={() => setAuthDialogOpen(true)}
+        onOpenSpace={() => handleCategoryClick('space')}
         onSignOut={signOut}
       />
 
-      {activeCategory === 'home' && (
+      <AuthDialog
+        open={authDialogOpen}
+        darkMode={darkMode}
+        error={authError}
+        t={t}
+        onClose={() => setAuthDialogOpen(false)}
+        onSendEmailOtp={sendEmailOtp}
+        onVerifyEmailOtp={verifyEmailOtp}
+        onGoogleLogin={signInWithGoogle}
+        onOpenPrivacy={() => { setAuthDialogOpen(false); navigate('/privacy'); }}
+      />
+
+      {activeCategory === 'home' && !privacyPageOpen && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <UpdateNotice darkMode={darkMode} language={language} />
         </div>
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+        {privacyPageOpen ? (
+          <PrivacyPage darkMode={darkMode} language={language} onBack={() => navigate('/')} />
+        ) : <>
+        {activeCategory !== 'space' && <div className="mb-8">
           <div className="relative max-w-lg mx-auto">
             <Search
               className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
@@ -84,13 +148,60 @@ function App() {
               }`}
             />
           </div>
-        </div>
+        </div>}
 
-        {searchQuery && <SearchResults results={filteredResources} darkMode={darkMode} t={t} />}
+        {activeCategory === 'space' ? (
+          <SpacePage
+            authenticated={Boolean(user)}
+            loading={space.loading}
+            error={space.error}
+            data={space.data}
+            darkMode={darkMode}
+            t={t}
+            onLoginRequired={() => setAuthDialogOpen(true)}
+            onRetry={() => void space.retry()}
+            resolveMarked={resourceActions.resolveMarked}
+            markPendingIds={resourceActions.markPendingIds}
+            onToggleMark={(resourceId, marked) => void resourceActions.toggleMark(resourceId, marked)}
+            onVisit={resourceActions.recordVisit}
+            onCreateResource={resourceActions.createResource}
+            onUpdateResource={resourceActions.updateResource}
+            onDeleteResource={resourceActions.deleteResource}
+            checkinCalendar={dailyCheckin.calendar}
+            checkinLoading={dailyCheckin.loading}
+            checkinError={dailyCheckin.error}
+            checkedToday={dailyCheckin.checkedToday}
+            checkinSubmitting={dailyCheckin.submitting}
+            onCheckIn={() => void dailyCheckin.checkIn()}
+            onRetryCheckins={() => void dailyCheckin.retry()}
+          />
+        ) : catalog.loading ? (
+          <p role="status" className={darkMode ? 'text-[#d8c4ad]' : 'text-[#6b5845]'}>{t('catalogLoading')}</p>
+        ) : catalog.error ? (
+          <div role="alert" className={`rounded-lg border p-5 text-center ${darkMode ? 'border-[#70453e] bg-[#3b2925] text-[#ffd2ca]' : 'border-[#dfb7ae] bg-[#fff0ed] text-[#7d3027]'}`}>
+            <p>{t('catalogLoadFailed')}</p>
+            <button type="button" className="mt-3 underline" onClick={() => void catalog.retry()}>{t('retry')}</button>
+          </div>
+        ) : (
+          <>
+        {searchQuery && (
+          <SearchResults
+            results={filteredResources}
+            darkMode={darkMode}
+            t={t}
+            authenticated={Boolean(user)}
+            onToggleMark={(resourceId, marked) => void resourceActions.toggleMark(resourceId, marked)}
+            onLoginRequired={() => setAuthDialogOpen(true)}
+            onVisit={resourceActions.recordVisit}
+            resolveMarked={resourceActions.resolveMarked}
+            markPendingIds={resourceActions.markPendingIds}
+          />
+        )}
 
         {activeCategory === 'home' && !searchQuery && (
           <HomePage
             categories={categoryList}
+            categoryCounts={categoryCounts}
             darkMode={darkMode}
             language={language}
             todaysPhrase={todaysPhrase}
@@ -99,18 +210,36 @@ function App() {
           />
         )}
 
-        {activeCategory !== 'home' && !searchQuery && activeCategoryData && (
+        {activeCategory !== 'home' && activeCategory !== 'space' && !searchQuery && activeCategoryData && activeCategoryMetadata && (
           <CategoryPage
             category={activeCategoryData}
+            metadata={activeCategoryMetadata}
             darkMode={darkMode}
             t={t}
+            authenticated={Boolean(user)}
+            onLoginRequired={() => setAuthDialogOpen(true)}
+            onToggleMark={(resourceId, marked) => void resourceActions.toggleMark(resourceId, marked)}
+            onVisit={resourceActions.recordVisit}
+            resolveMarked={resourceActions.resolveMarked}
+            markPendingIds={resourceActions.markPendingIds}
           />
         )}
+          </>
+        )}
+        </>}
       </main>
 
       <Footer darkMode={darkMode} t={t} />
       <Analytics />
-      <FeedbackFab darkMode={darkMode} t={t} />
+      {!privacyPageOpen && <FeedbackFab
+        darkMode={darkMode}
+        t={t}
+        authenticated={Boolean(user)}
+        checkedToday={dailyCheckin.checkedToday}
+        checkinSubmitting={dailyCheckin.submitting}
+        onCheckIn={() => void dailyCheckin.checkIn()}
+        onLoginRequired={() => setAuthDialogOpen(true)}
+      />}
     </div>
   );
 }
