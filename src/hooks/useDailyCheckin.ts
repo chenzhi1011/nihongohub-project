@@ -80,7 +80,7 @@ export function useDailyCheckin(
       if (requestVersion.current === version) {
         setCheckedDates([]);
         setError(nextError);
-        reportCheckinError(nextError, 'daily_checkins_fetch_failed');
+        reportCheckinError(nextError, 'daily_checkins.fetch.failed');
       }
     } finally {
       if (requestVersion.current === version) setLoading(false);
@@ -115,7 +115,7 @@ export function useDailyCheckin(
       setCheckedDates((current) => current.includes(localDate) ? current : [...current, localDate]);
     } catch (nextError) {
       setError(nextError);
-      reportCheckinError(nextError, 'daily_checkin_create_failed', localDate);
+      reportCheckinError(nextError, 'daily_checkin.create.failed', localDate);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);

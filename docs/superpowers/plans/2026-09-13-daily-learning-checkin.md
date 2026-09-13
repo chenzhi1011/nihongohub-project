@@ -8,6 +8,8 @@
 
 **Tech Stack:** React 18, TypeScript, Supabase/Postgres, Vitest, Testing Library, pgTAP, Tailwind CSS
 
+**Execution status:** Completed and locally verified on 2026-09-13. During implementation, the established `VALIDATION_ERROR` application code replaced the draft-only `INVALID_INPUT` name, and the approved compact calendar is paired with browsing history on desktop. Verification passed 136 frontend tests, 111 pgTAP assertions, TypeScript, ESLint, production build, and an empty-database migration replay.
+
 ---
 
 ### Task 1: Database persistence and authorization

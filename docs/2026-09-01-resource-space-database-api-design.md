@@ -1,9 +1,9 @@
 # 日本語 HUB：资源、个人 Space、数据库与 API 设计
 
 - 日期：2026-09-01
-- 最后修订：2026-09-07
-- 状态：设计已确认；schema、RLS、RPC、授权目录、个人 Space 页面与私人资源新增/编辑/删除界面已在隔离 worktree 实现并通过本地测试，生产环境连接尚未执行
-- 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、个人 Space
+- 最后修订：2026-09-13
+- 状态：设计已确认；schema、RLS、RPC、授权目录、个人 Space、私人资源管理与每日打卡已在隔离 worktree 实现并通过本地测试，生产环境连接尚未执行
+- 适用范围：游客资源限制、登录、Mark、浏览历史、私人资源、每日打卡、个人 Space
 - 技术路径：React + TypeScript + Supabase Auth/Postgres/RLS
 
 ## 0. 系统责任边界
@@ -341,13 +341,26 @@ similar_resource_limit() returns integer   -- 30
 
 主键：`(user_id, resource_id)`。每次点击执行原子 upsert：已有行就增加 `visit_count` 并更新时间。
 
-### 5.6 删除行为
+### 5.6 `daily_checkins`
+
+每日打卡只保存“用户在某个当地自然日完成打卡”这一事实，不关联资源，也不记录停留时长。
+
+| 字段 | PostgreSQL 类型 | 键/约束 | 约束说明 | 数据示例 |
+|---|---|---|---|---|
+| `user_id` | `uuid` | `PK, FK` | 联合主键的一部分；引用 `auth.users.id ON DELETE CASCADE` | `6fda32b8-67a1-4b7e-b427-10a38c3d550c` |
+| `checkin_date` | `date` | `PK` | 用户浏览器所在地的自然日 | `2026-09-13` |
+| `checked_at` | `timestamptz` | `NN, DF` | 默认 `now()`，数据库实际写入时间 | `2026-09-13T08:30:00Z` |
+
+主键 `(user_id, checkin_date)` 保证每人每天最多一条，也支持按用户和日期范围读取当月记录，因此不再创建重复索引。普通用户只能读取本人记录；新增必须通过 `check_in_today` RPC，且不提供更新或删除能力。
+
+### 5.7 删除行为
 
 - 删除私人资源时，级联删除它的主题关系和浏览历史。
 - 删除公共资源时，级联删除它的主题关系、相关 Mark 和历史；该操作仅管理员在 Dashboard 中执行。
 - 删除账号的用户数据清理由 `user_id` 外键级联完成。
+- 删除账号时，其每日打卡记录也由外键级联清理。
 
-### 5.7 索引
+### 5.8 索引
 
 至少建立：
 
@@ -387,6 +400,9 @@ RLS 是 PostgreSQL 的行级权限。即使用户绕过 React 页面直接调用
 | 删除私人资源 | 禁止 | 仅本人 | 允许 |
 | 读取/写入 Mark | 禁止 | 仅本人 | 允许 |
 | 读取/写入历史 | 禁止 | 仅本人 | 允许 |
+| 读取每日打卡 | 禁止 | 仅本人 | 允许 |
+| 新增每日打卡 | 禁止 | 仅通过受控 RPC 每日写入一次 | 允许 |
+| 修改/删除每日打卡 | 禁止 | 禁止 | 允许 |
 
 `resources` 的 RLS 以 `owner_id` 为判断依据：
 
@@ -425,6 +441,7 @@ RLS 是 PostgreSQL 的行级权限。即使用户绕过 React 页面直接调用
 | `update_private_resource(...)` | `authenticated` | 本人资源 ID、主题、字段、确认状态 | 与创建使用相同重复/相似规则；越权抛出 `RESOURCE_NOT_OWNED` |
 | `private_resource_limit()` | `authenticated` | 无 | `200` |
 | `similar_resource_limit()` | `authenticated` | 无 | `30` |
+| `check_in_today(p_checkin_date)` | `authenticated` | 用户当地日期，不接受用户 ID | 首次返回 `checked`，重复返回 `already_checked`；越界日期抛出 `INVALID_CHECKIN_DATE` |
 
 创建和更新 RPC 的预期结果状态：
 
@@ -637,6 +654,8 @@ Service 层校验：
 
 `spaceService` 把三个结果组合成 `SpaceSnapshot`，按前端 `src/data/categories.ts` 中的既定主题顺序分组和排序，并过滤空主题。`SpacePage` 只消费该快照，不调用 API：顶部历史为单行横向滚动，下方主题 section 竖向排列且不分页。未登录时 `useSpace(false)` 不读取个人数据；失败时显示重试而不是空状态。
 
+每日打卡使用独立的 `useDailyCheckin`，按用户当地日期读取当月最多 31 行。`App` 只创建一个 Hook 实例，并把同一状态与动作传给右下角按钮和 Space 月历，确保任一入口成功后同步更新。桌面端紧凑月历与浏览历史左右并排，移动端上下排列；打卡后不可取消。
+
 ### 7.8 错误类型
 
 API 层应把 Supabase 错误映射成应用可识别的错误：
@@ -820,6 +839,8 @@ auth.google.failed
 catalog.fetch.failed
 resource_mark.set.failed
 resource_history.record.failed
+daily_checkins.fetch.failed
+daily_checkin.create.failed
 private_resource.create.failed
 private_resource.update.failed
 space.fetch.failed

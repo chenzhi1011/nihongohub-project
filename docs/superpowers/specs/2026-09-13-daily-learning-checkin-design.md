@@ -118,7 +118,7 @@ RPC 只接受数据库 UTC 当前日期前后一天内的 `checkin_date`。这�
 - `already_checked` 是正常幂等结果，不记录为错误。
 - 未登录点击是预期交互，只打开登录弹窗，不记录错误。
 - 无效日期使用稳定业务错误码和安全提示，不展示数据库原始错误。
-- 读取失败和提交失败记录结构化事件，例如 `daily_checkins_fetch_failed`、`daily_checkin_create_failed`。
+- 读取失败和提交失败记录结构化事件，例如 `daily_checkins.fetch.failed`、`daily_checkin.create.failed`。
 - 日志包含 `operationId`、`errorCode`、`release`、`environment` 和操作名；打卡日期可以记录，因为它不包含私人资源内容。
 - 不记录用户邮箱、access token 或 Supabase 原始会话对象。
 
